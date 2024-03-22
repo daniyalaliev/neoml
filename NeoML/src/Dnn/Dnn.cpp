@@ -499,6 +499,17 @@ void CDnn::ForceRebuild()
 
 CDnn* CDnn::CreateReferenceDnn()
 {
+	NeoAssert(maxSequenceLength == 1);
+	if (isBackwardPerformed) {
+		// The layer Reshape methods depend on IsBackwardPerformed()
+		RequestReshape( /*forcedReshape*/true);
+	}
+	isBackwardPerformed = false;
+	if (autoRestartMode) {
+		RestartSequence();
+	}
+	reshape();
+
 	CDnn* newDnn = new CDnn(Random(), mathEngine);
 	for (int i = 0; i < layers.Size(); ++i) {
 		CPtr<CBaseLayer> copyLayer;
