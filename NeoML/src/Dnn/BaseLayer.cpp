@@ -764,6 +764,41 @@ void CBaseLayer::InitializeParamBlob(int input, CDnnBlob& blob, int inputCount)
 
 static const int BaseLayerVersion = 2000;
 
+void CBaseLayer::RefSerialize(CArchive& archive)
+{
+	archive.SerializeVersion(BaseLayerVersion, CDnn::ArchiveMinSupportedVersion);
+	if (archive.IsStoring()) {
+		archive << name;
+		archive << inputs.Size();
+		for (int i = 0; i < inputs.Size(); ++i) {
+			archive << inputs[i].Name;
+			archive << inputs[i].OutputNumber;
+		}
+		archive << isBackwardForced;
+		archive << isLearningEnabled;
+		archive << baseLearningRate << baseL2RegularizationMult << baseL1RegularizationMult;
+	}
+	else if (archive.IsLoading()) {
+		if (dnn != 0) {
+			unlink();
+		}
+		archive >> name;
+		int inputCount;
+		archive >> inputCount;
+		inputs.SetSize(inputCount);
+		for (int i = 0; i < inputCount; ++i) {
+			archive >> inputs[i].Name;
+			archive >> inputs[i].OutputNumber;
+		}
+		archive >> isBackwardForced;
+		archive >> isLearningEnabled;
+		archive >> baseLearningRate >> baseL2RegularizationMult >> baseL1RegularizationMult;
+	}
+	else {
+		NeoAssert(false);
+	}
+}
+
 void CBaseLayer::Serialize( CArchive& archive )
 {
 	archive.SerializeVersion(BaseLayerVersion, CDnn::ArchiveMinSupportedVersion);

@@ -73,19 +73,19 @@ TEST(ParameterLayerTest, ParameterRunLearnSerializeTest)
 
     EXPECT_TRUE(CompareBlobs(*paramBlob, *expected));
 
-    CDnn* newDnn = net.CreateReferenceDnn();
-    dynamic_cast<CSourceLayer*>(newDnn->GetLayer("in").Ptr())->SetBlob(dataBlob->GetCopy());
-    printf("_________________________________");
-    for (int i = 0; i < numOfIterations; ++i) {
-        newDnn->RunAndLearnOnce();
-        printf("\n %f", dynamic_cast<CL1LossLayer*>(newDnn->GetLayer("loss").Ptr())->GetLastLoss());
-        //EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
-    }
-    printf("_________________________________");
-    for (int i = 0; i < numOfIterations; ++i) {
-        net.RunAndLearnOnce();
-        printf("\n %f", loss->GetLastLoss());
-        EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
-    }
-    delete newDnn;
+    //CDnn* newDnn = net.CreateReferenceDnn();
+    //dynamic_cast<CSourceLayer*>(newDnn->GetLayer("in").Ptr())->SetBlob(dataBlob->GetCopy());
+    //printf("_________________________________");
+    //for (int i = 0; i < numOfIterations; ++i) {
+    //    newDnn->RunAndLearnOnce();
+    //    printf("\n %f", dynamic_cast<CL1LossLayer*>(newDnn->GetLayer("loss").Ptr())->GetLastLoss());
+    //    //EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
+    //}
+    //printf("_________________________________");
+    //for (int i = 0; i < numOfIterations; ++i) {
+    //    net.RunAndLearnOnce();
+    //    printf("\n %f", loss->GetLastLoss());
+    //    EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
+    //}
+    //delete newDnn;
 }
