@@ -176,8 +176,8 @@ TEST(ThreadTest, Four1Dnns)
 }
 
 static const int paragraphs_cnt = 100;
-static const int batch_size = 18;
-static const int numOfThreads = 6;
+static const int batch_size = 4;
+static const int numOfThreads = 4;
 static const int numOfMeasures = 10;
 
 static void initializeInput(CRandom& random, CPtr<CDnnBlob> blob, int lower, int higher)
@@ -203,20 +203,29 @@ TEST(ThreadTest, BertTest)
     CArchive archive(&file, CArchive::SD_Loading);
 
     bert.Serialize(archive);
+    //bert.SetInitializer()
 
     CPtr<CDnnBlob> input_ids = CDnnBlob::CreateTensor(MathEngine(), CT_Int, { 1, batch_size, 512, 1, 1, 1, 1 });
-    initializeInput(CRandom(0x123), input_ids, 0, 50000);
+    initializeInput(CRandom(0x123), input_ids, 1, 2);
     static_cast<CSourceLayer*>(bert.GetLayer("input_ids").Ptr())->SetBlob(input_ids);
 
     CPtr<CDnnBlob> clsPositions = CDnnBlob::CreateTensor(MathEngine(), CT_Int, { 1, 1, 1, 1, 1, 1, paragraphs_cnt });
-    initializeInput(CRandom(0x123), clsPositions, 0, 512);
+    initializeInput(CRandom(0x123), clsPositions, 1, 2);
     static_cast<CSourceLayer*>(bert.GetLayer("cls_positions").Ptr())->SetBlob(clsPositions);
 
     std::unique_ptr<IPerformanceCounters> counters(MathEngine().CreatePerformanceCounters());
     counters->Synchronise();
 
-    for( int i = 0; i < numOfMeasures; ++i)
-        bert.RunOnce();
+    //for( int i = 0; i < numOfMeasures; ++i)
+    CDnnUniformInitializer initializer(CRandom(0x123), 1, 2);
+    bert.SetInitializer(&initializer);
+    bert.RunOnce();
+
+    auto output = static_cast<CSinkLayer*>(bert.GetLayer("output").Ptr())->GetBlob()->GetData();
+    auto size = static_cast<CSinkLayer*>(bert.GetLayer("output").Ptr())->GetBlob()->GetDataSize();
+    for (int i = 0; i < size; ++i) {
+        printf("%d ", output.GetValueAt(i));
+    }
 
     counters->Synchronise();
     std::cerr
@@ -232,7 +241,7 @@ TEST(ThreadTest, BertThreadTest)
     CRandom random(0x123);
     CDnn* bert = new CDnn(random, MathEngine());
     auto t = FileSystem::GetCurrentDir();
-    CArchiveFile file(".\\RobertaTextSeqmentationInference.dnn", CArchive::load);
+    CArchiveFile file(".\\RobertaTextSegmentationTrainNoLora.dnn", CArchive::load);
     CArchive archive(&file, CArchive::SD_Loading);
 
     bert->Serialize(archive);
@@ -320,7 +329,7 @@ TEST(ThreadTest, DummyBertThread)
 
     for (int i = 0; i < numOfThreads; ++i) {
         CDnn* dnn = new CDnn(random, MathEngine());
-        CArchiveFile file(".\\RobertaTextSeqmentationInference.dnn", CArchive::load);
+        CArchiveFile file(".\\RobertaTextSegmentationTrainNoLora.dnn", CArchive::load);
         CArchive archive(&file, CArchive::SD_Loading);
         dnn->Serialize(archive);
         dnns.Add(dnn);
