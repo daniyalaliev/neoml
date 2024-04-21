@@ -497,64 +497,8 @@ void CDnn::ForceRebuild()
 	sourceLayers.SetSize( 0 );
 }
 
-void RefSerializeLayer(CArchive& archive, IMathEngine& mathEngine, CPtr<CBaseLayer>& layer)
-{
-	if (archive.IsStoring()) {
-		CString name = getLayerClass(layer);
-		NeoAssert(layer == nullptr || name != ""); // assertion on storing not registered layer
-		archive << name;
-		if (layer != 0) {
-			layer->RefSerialize(archive);
-		}
-	}
-	else if (archive.IsLoading()) {
-		CString name;
-		archive >> name;
-		layer = createLayer(mathEngine, name);
-		CheckArchitecture(name == "" || layer != nullptr, name, "restoring unknown layer from archive");
-		if (layer != 0) {
-			layer->RefSerialize(archive);
-		}
-	}
-	else {
-		NeoAssert(false);
-	}
-}
-
-
-void CDnn::TransferWeights(const CPtr<CBaseLayer> from, const CPtr<CBaseLayer> dist)
-{
-	dist->paramBlobs.Empty();
-	dist->paramBlobs.SetSize(from->paramBlobs.Size());
-
-	for (int j = 0; j < dist->paramBlobs.Size(); ++j)
-	{
-		dist->paramBlobs[j] = CDnnBlob::CreateRefenceBlob(from->paramBlobs[j]);
-		dist->paramBlobs[j]->Fill(21312.f);
-	}
-
-	if (dynamic_cast<CCompositeLayer*>(dist.Ptr()) != nullptr) {
-
-		CPtr<CCompositeLayer> compTo = dynamic_cast<CCompositeLayer*>(dist.Ptr());
-		CPtr<CCompositeLayer> compFrom = dynamic_cast<CCompositeLayer*>(from.Ptr());
-		NeoAssert(compFrom != nullptr);
-		for (int k = 0; k < compTo->layers.Size(); ++k) {
-			TransferWeights(compFrom->GetLayer(compTo->layers[k]->GetName()), compTo->layers[k]);
-		}
-	}
-}
-
 CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 {
-	NeoAssert(maxSequenceLength == 1);
-	if (isBackwardPerformed) {
-		// The layer Reshape methods depend on IsBackwardPerformed()
-		RequestReshape( /*forcedReshape*/true);
-	}
-	isBackwardPerformed = false;
-	if (autoRestartMode) {
-		RestartSequence();
-	}
 	reshape();
 
 	CDnn* newDnn = new CDnn(random, mathEngine);
@@ -571,10 +515,7 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		CArchive archive(&file, CArchive::SD_Loading);
 		SerializeLayer(archive, layers[i]->MathEngine(), copyLayer);
 
-
-		TransferWeights(layers[i], copyLayer);
-
-
+		layers[i]->transferParamsBlob(copyLayer);
 		newDnn->AddLayer(*copyLayer);
 	}
 	return newDnn;

@@ -654,3 +654,4 @@ TEST( LoraMemCheck, DISABLED_WithLora )
 	memCheckTest( true );
 	DeleteMathEngine();
 }
+

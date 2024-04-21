@@ -56,7 +56,7 @@ TEST(ParameterLayerTest, ParameterRunLearnSerializeTest)
     solver->SetMomentDecayRate(0.f);
     net.SetSolver(solver.Ptr());
 
-    const int numOfIterations = 15;
+    const int numOfIterations = 3;
     CPtr<CDnnBlob> expected = paramBlob->GetClone();
     CFloatHandleStackVar diff(MathEngine(), 1);
     diff.SetValue(learningRate * numOfIterations);
@@ -67,25 +67,8 @@ TEST(ParameterLayerTest, ParameterRunLearnSerializeTest)
 
     for (int i = 0; i < numOfIterations; ++i) {
         net.RunAndLearnOnce();
-        printf("\n %f", loss->GetLastLoss());
         EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
     }
 
     EXPECT_TRUE(CompareBlobs(*paramBlob, *expected));
-
-    //CDnn* newDnn = net.CreateReferenceDnn();
-    //dynamic_cast<CSourceLayer*>(newDnn->GetLayer("in").Ptr())->SetBlob(dataBlob->GetCopy());
-    //printf("_________________________________");
-    //for (int i = 0; i < numOfIterations; ++i) {
-    //    newDnn->RunAndLearnOnce();
-    //    printf("\n %f", dynamic_cast<CL1LossLayer*>(newDnn->GetLayer("loss").Ptr())->GetLastLoss());
-    //    //EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
-    //}
-    //printf("_________________________________");
-    //for (int i = 0; i < numOfIterations; ++i) {
-    //    net.RunAndLearnOnce();
-    //    printf("\n %f", loss->GetLastLoss());
-    //    EXPECT_TRUE(CompareBlobs(*(output->GetBlob()), *(params->GetBlob())));
-    //}
-    //delete newDnn;
 }

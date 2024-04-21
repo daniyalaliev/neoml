@@ -194,7 +194,6 @@ public:
 	virtual void RestartSequence() {} 
 
 	void Serialize(CArchive& archive) override;
-	void RefSerialize(CArchive& archive);
 
 	// Indicates that backpropagation should be performed for the layer 
 	// even if there are no trainable layers before it
@@ -389,6 +388,9 @@ private:
 	// Indicates if the layer performs in-place processing (after the Reshape method call)
 	bool isInPlace;
 
+	// Copies paramBlobs to dist layers
+	void transferParamsBlob(const CPtr<CBaseLayer> dist);
+
 	// Switches the specified blobs into sequence processing mode
 	void switchBlobsToSequentialMode(CObjectArray<CDnnBlob>& blobs, TBlobCacheType cacheType, bool storeParent);
 	void switchBlobsToNonSequentialMode(CObjectArray<CDnnBlob>& blobs, TBlobCacheType cacheType, bool clear);
@@ -565,7 +567,6 @@ public:
 	bool IsRebuildRequested() const { return isRebuildNeeded; }
 	// Make copy of the network with references to parameters (copy uses the origin's dnn parameters)
 	CDnn* CreateReferenceDnn(CRandom& random);
-	void TransferWeights(const CPtr<CBaseLayer> from, const CPtr<CBaseLayer> dist);
 
 	// Gets a reference to the random numbers generator
 	CRandom& Random() { return random; }

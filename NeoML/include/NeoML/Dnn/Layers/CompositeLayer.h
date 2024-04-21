@@ -170,8 +170,6 @@ private:
 	bool isComposite() const override { return true; }
 	// The hook for inserting the child data in the archive, for consistency
 	virtual void serializationHook( CArchive& archive );
-
-	friend class CDnn;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////

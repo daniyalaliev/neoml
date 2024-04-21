@@ -295,6 +295,31 @@ size_t CBaseLayer::GetTrainableParametersSize() const
 	return result;
 }
 
+void CBaseLayer::transferParamsBlob(const CPtr<CBaseLayer> dist)
+{
+	dist->paramBlobs.Empty();
+	dist->paramBlobs.SetSize(paramBlobs.Size());
+
+	for (int j = 0; j < dist->paramBlobs.Size(); ++j)
+	{
+		dist->paramBlobs[j] = CDnnBlob::CreateRefenceBlob(paramBlobs[j]);
+	}
+
+	if (dynamic_cast<CCompositeLayer*>(dist.Ptr()) != nullptr) {
+
+		CPtr<CCompositeLayer> compTo = static_cast<CCompositeLayer*>(dist.Ptr());
+		CPtr<CCompositeLayer> compFrom = dynamic_cast<CCompositeLayer*>(this);
+		NeoAssert(compFrom != nullptr);
+
+		CArray<const char*> fromLayers;
+		compFrom->GetLayerList(fromLayers);
+		for (int k = 0; k < fromLayers.Size(); ++k) {
+			compFrom->GetLayer(fromLayers[k])->transferParamsBlob(compTo->GetLayer(fromLayers[k]));
+		}
+	}
+}
+
+
 void CBaseLayer::switchBlobsToSequentialMode(CObjectArray<CDnnBlob>& blobs, TBlobCacheType cacheType, bool storeParent)
 {
 	CObjectArray<CDnnBlob>& cache = blobCache[cacheType];
@@ -763,41 +788,6 @@ void CBaseLayer::InitializeParamBlob(int input, CDnnBlob& blob, int inputCount)
 }
 
 static const int BaseLayerVersion = 2000;
-
-void CBaseLayer::RefSerialize(CArchive& archive)
-{
-	archive.SerializeVersion(BaseLayerVersion, CDnn::ArchiveMinSupportedVersion);
-	if (archive.IsStoring()) {
-		archive << name;
-		archive << inputs.Size();
-		for (int i = 0; i < inputs.Size(); ++i) {
-			archive << inputs[i].Name;
-			archive << inputs[i].OutputNumber;
-		}
-		archive << isBackwardForced;
-		archive << isLearningEnabled;
-		archive << baseLearningRate << baseL2RegularizationMult << baseL1RegularizationMult;
-	}
-	else if (archive.IsLoading()) {
-		if (dnn != 0) {
-			unlink();
-		}
-		archive >> name;
-		int inputCount;
-		archive >> inputCount;
-		inputs.SetSize(inputCount);
-		for (int i = 0; i < inputCount; ++i) {
-			archive >> inputs[i].Name;
-			archive >> inputs[i].OutputNumber;
-		}
-		archive >> isBackwardForced;
-		archive >> isLearningEnabled;
-		archive >> baseLearningRate >> baseL2RegularizationMult >> baseL1RegularizationMult;
-	}
-	else {
-		NeoAssert(false);
-	}
-}
 
 void CBaseLayer::Serialize( CArchive& archive )
 {
