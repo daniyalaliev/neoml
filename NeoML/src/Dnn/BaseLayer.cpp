@@ -295,26 +295,25 @@ size_t CBaseLayer::GetTrainableParametersSize() const
 	return result;
 }
 
-void CBaseLayer::transferParamsBlob(const CPtr<CBaseLayer> dist)
+void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 {
-	dist->paramBlobs.Empty();
-	dist->paramBlobs.SetSize(paramBlobs.Size());
+	dist.paramBlobs.Empty();
+	dist.paramBlobs.SetSize(paramBlobs.Size());
 
-	for (int j = 0; j < dist->paramBlobs.Size(); ++j)
+	for (int j = 0; j < dist.paramBlobs.Size(); ++j)
 	{
-		dist->paramBlobs[j] = CDnnBlob::CreateRefenceBlob(paramBlobs[j]);
+		dist.paramBlobs[j] = CDnnBlob::CreateRefenceBlob(paramBlobs[j]);
 	}
 
-	if (dynamic_cast<CCompositeLayer*>(dist.Ptr()) != nullptr) {
-
-		CPtr<CCompositeLayer> compTo = static_cast<CCompositeLayer*>(dist.Ptr());
-		CPtr<CCompositeLayer> compFrom = dynamic_cast<CCompositeLayer*>(this);
-		NeoAssert(compFrom != nullptr);
+	CCompositeLayer* compositeTo = dynamic_cast<CCompositeLayer*>(&dist);
+	if (compositeTo != nullptr) {
+		const CCompositeLayer* compositeFrom = CheckCast<const CCompositeLayer>(this);
 
 		CArray<const char*> fromLayers;
-		compFrom->GetLayerList(fromLayers);
+		compositeFrom->GetLayerList(fromLayers);
 		for (int k = 0; k < fromLayers.Size(); ++k) {
-			compFrom->GetLayer(fromLayers[k])->transferParamsBlob(compTo->GetLayer(fromLayers[k]));
+			const char* layerName = fromLayers[k];
+			compositeFrom->GetLayer(layerName)->transferParamsBlob(*compositeTo->GetLayer(layerName));
 		}
 	}
 }

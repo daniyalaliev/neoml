@@ -412,6 +412,7 @@ CDnn::CDnn( CRandom& _random, IMathEngine& _mathEngine, const CCompositeLayer* o
 	isBackwardPerformed( false ),
 	isLearningEnabled( true ),
 	isRecurrentMode( false ),
+	hasReference( false ),
 	maxSequenceLength( 1 ),
 	currentSequencePos( 0 ),
 	isReverseSequense( false ),
@@ -499,9 +500,22 @@ void CDnn::ForceRebuild()
 
 CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 {
+	for (int i = 0; i < layers.Size(); ++i) {
+		auto* srcLayer = dynamic_cast<CSourceLayer*>(layers[i].Ptr());
+		if (srcLayer != nullptr) {
+			CheckArchitecture(srcLayer->GetBlob().Ptr() != nullptr, srcLayer->GetName(),
+				"initialize source blobs before creating reference dnns");
+		}
+	}
+
+	hasReference = true;
+	DisableLearning();
 	reshape();
 
 	CDnn* newDnn = new CDnn(random, mathEngine);
+	newDnn->hasReference = true;
+	newDnn->DisableLearning();
+
 	for (int i = 0; i < layers.Size(); ++i) {
 		CPtr<CBaseLayer> copyLayer;
 		CMemoryFile file;
@@ -515,7 +529,7 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		CArchive archive(&file, CArchive::SD_Loading);
 		SerializeLayer(archive, layers[i]->MathEngine(), copyLayer);
 
-		layers[i]->transferParamsBlob(copyLayer);
+		layers[i]->transferParamsBlob(*copyLayer);
 		newDnn->AddLayer(*copyLayer);
 	}
 	return newDnn;
@@ -563,6 +577,7 @@ void CDnn::DisableLearning()
 
 void CDnn::EnableLearning()
 {
+	NeoAssert( !hasReference );
 	if( isLearningEnabled ) {
 		return;
 	}

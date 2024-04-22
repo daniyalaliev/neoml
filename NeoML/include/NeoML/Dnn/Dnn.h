@@ -389,7 +389,7 @@ private:
 	bool isInPlace;
 
 	// Copies paramBlobs to dist layers
-	void transferParamsBlob(const CPtr<CBaseLayer> dist);
+	void transferParamsBlob(CBaseLayer& dist) const;
 
 	// Switches the specified blobs into sequence processing mode
 	void switchBlobsToSequentialMode(CObjectArray<CDnnBlob>& blobs, TBlobCacheType cacheType, bool storeParent);
@@ -626,6 +626,8 @@ private:
 	bool isLearningEnabled;
 	// Indicates that the recurrent mode is on (for a sub-network of a recurrent layer)
 	bool isRecurrentMode;
+	// Indicates if dnn has reference copies or it is reference copy itself
+	bool hasReference;
 
 	// The initializer
 	CPtr<CDnnInitializer> initializer;
