@@ -315,9 +315,8 @@ void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 	dist.paramBlobs.Empty();
 	dist.paramBlobs.SetSize(paramBlobs.Size());
 
-	for (int j = 0; j < dist.paramBlobs.Size(); ++j)
-	{
-		dist.paramBlobs[j] = CDnnBlob::CreateRefenceBlob(paramBlobs[j]);
+	for(int j = 0; j < dist.paramBlobs.Size(); ++j) {
+		dist.paramBlobs[j] = CDnnBlob::CreateWindowBlob(paramBlobs[j], paramBlobs[j]->GetDesc().BatchLength());
 	}
 
 	CCompositeLayer* compositeTo = dynamic_cast<CCompositeLayer*>(&dist);
@@ -326,7 +325,7 @@ void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 
 		CArray<const char*> fromLayers;
 		compositeFrom->GetLayerList(fromLayers);
-		for (int k = 0; k < fromLayers.Size(); ++k) {
+		for(int k = 0; k < fromLayers.Size(); ++k) {
 			const char* layerName = fromLayers[k];
 			compositeFrom->GetLayer(layerName)->transferParamsBlob(*compositeTo->GetLayer(layerName));
 		}

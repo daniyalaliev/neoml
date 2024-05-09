@@ -25,18 +25,12 @@ using namespace NeoMLTest;
 
 TEST( CDnnBlobTest, InitWindowBlob )
 {
-    CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
-    CPtr<CDnnBlob> blob = CDnnBlob::CreateWindowBlob( parent );
-
-    EXPECT_FALSE( blob->GetData().IsNull() );
-}
-
-TEST( CDnnBlobTest, ReferenceBlobTest )
-{
     CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob(MathEngine(), CT_Float, 16, 1, 1);
-    CPtr<CDnnBlob> blob = CDnnBlob::CreateRefenceBlob(parent);
+    CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob(parent, 16);
 
-    EXPECT_TRUE(CompareBlobs(*blob, *parent));
+    EXPECT_TRUE(window->GetData().IsNull() == false);
+    EXPECT_TRUE(CompareBlobs(*window, *parent));
+    EXPECT_TRUE(window->GetData() == parent->GetData());
 }
 
 TEST( CDnnBlobTest, BufferTest )

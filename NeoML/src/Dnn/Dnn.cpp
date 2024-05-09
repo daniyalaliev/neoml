@@ -412,12 +412,12 @@ CDnn::CDnn( CRandom& _random, IMathEngine& _mathEngine, const CCompositeLayer* o
 	isBackwardPerformed( false ),
 	isLearningEnabled( true ),
 	isRecurrentMode( false ),
-	hasReference( false ),
 	maxSequenceLength( 1 ),
 	currentSequencePos( 0 ),
 	isReverseSequense( false ),
 	autoRestartMode( true ),
-	isReuseMemoryMode( false )
+	isReuseMemoryMode( false ),
+	refInfo(nullptr)
 {
 	solver = FINE_DEBUG_NEW CDnnSimpleGradientSolver( mathEngine );
 	initializer = FINE_DEBUG_NEW CDnnXavierInitializer( random );
@@ -429,6 +429,10 @@ CDnn::~CDnn()
 		CPtr<CBaseLayer> layer = layers[i];
 		DeleteLayer( *layer );
 		layer->setDnn( 0 );
+	}
+
+	if(refInfo != nullptr) {
+		refInfo->removeReference(this);
 	}
 }
 
@@ -508,12 +512,14 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		}
 	}
 
-	hasReference = true;
+	if(refInfo == nullptr) {
+		refInfo = new CDnnRefManager(this);
+	}
+
 	DisableLearning();
 	reshape();
 
 	CDnn* newDnn = new CDnn(random, mathEngine);
-	newDnn->hasReference = true;
 	newDnn->DisableLearning();
 
 	for (int i = 0; i < layers.Size(); ++i) {
@@ -532,6 +538,8 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		layers[i]->transferParamsBlob(*copyLayer);
 		newDnn->AddLayer(*copyLayer);
 	}
+	refInfo->addReference(newDnn);
+	newDnn->refInfo = refInfo;
 	return newDnn;
 }
 
@@ -577,7 +585,10 @@ void CDnn::DisableLearning()
 
 void CDnn::EnableLearning()
 {
-	NeoAssert( !hasReference );
+	if(refInfo != nullptr) {
+		NeoAssert((refInfo->sharedDnns).Size() == 1);
+	}
+
 	if( isLearningEnabled ) {
 		return;
 	}

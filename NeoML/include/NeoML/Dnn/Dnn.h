@@ -87,6 +87,7 @@ class CDnn;
 class CDnnLayerGraph;
 class CBaseLayer;
 class CCompositeLayer;
+class CDnnRefManager;
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -626,8 +627,6 @@ private:
 	bool isLearningEnabled;
 	// Indicates that the recurrent mode is on (for a sub-network of a recurrent layer)
 	bool isRecurrentMode;
-	// Indicates if dnn has reference copies or it is reference copy itself
-	bool hasReference;
 
 	// The initializer
 	CPtr<CDnnInitializer> initializer;
@@ -642,6 +641,9 @@ private:
 	bool autoRestartMode;
 	// The low memory use mode
 	bool isReuseMemoryMode;
+	
+	// Reference information 
+	CPtr<CDnnRefManager> refInfo;
 
 	void setProcessingParams(bool isRecurrentMode, int sequenceLength, bool isReverseSequense, bool isBackwardPerformed);
 	void runOnce(int curSequencePos);
@@ -653,7 +655,44 @@ private:
 	friend class CBaseLayer;
 	friend class CCompositeLayer;
 	friend class CRecurrentLayer;
+	friend class CDnnRefManager;
 };
+
+//------------------------------------------------------------------------------------------------------------
+
+// Manages reference counts and initial states for CDnn objects, restoring configurations once all references are removed
+class NEOML_API CDnnRefManager : public IObject {
+public:
+	CDnnRefManager(CDnn* _originalDnn) :
+		learningState(_originalDnn->IsLearningEnabled())
+	{
+		sharedDnns.Add(_originalDnn);
+	}
+
+private:
+	bool learningState; // initial isLearningEnable state before creating reference copies
+	CHashTable<CDnn*> sharedDnns; // set of dnns with shared weights
+
+	void addReference(CDnn* net) { sharedDnns.Add(net); }
+
+	void removeReference(CDnn* net) {
+		sharedDnns.Delete(net);
+
+		if(sharedDnns.Size() == 1) {
+			auto pos = sharedDnns.GetFirstPosition();
+			CDnn* lastDnn = sharedDnns.GetValue(pos);
+			lastDnn->refInfo.Release();
+
+			if(learningState) {
+				lastDnn->EnableLearning();
+			}
+		}
+	}
+
+	friend class CDnn;
+};
+
+//------------------------------------------------------------------------------------------------------------
 
 inline CArchive& operator<<( CArchive& archive, const CDnn& dnn)
 {

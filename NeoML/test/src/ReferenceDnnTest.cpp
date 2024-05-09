@@ -48,6 +48,7 @@ static CDnn* createDnn(CRandom& random)
 
 	CPtr<CDropoutLayer> dp1 = new CDropoutLayer(MathEngine());
 	dp1->SetName("dp1");
+	dp1->SetDropoutRate(0.1f);
 	dp1->Connect(0, *fc1);
 	net->AddLayer(*dp1);
 
@@ -59,6 +60,7 @@ static CDnn* createDnn(CRandom& random)
 
 	CPtr<CDropoutLayer> dp2 = new CDropoutLayer(MathEngine());
 	dp2->SetName("dp2");
+	dp2->SetDropoutRate(0.1f);
 	dp2->Connect(0, *fc2);
 	net->AddLayer(*dp2);
 
@@ -156,8 +158,8 @@ TEST(ReferenceDnnTest, FullCopyDnnsThreads)
 		dnns.Add(createDnn(randoms[i]));
 		blobs.Add(CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 8, 20, 30, 10 }));
 		taskParams.Add({ dnns[i] });
-		CRandom randomInit(0);
 
+		CRandom randomInit(0);
 		for(int j = 0; j < blobs[i]->GetDataSize(); ++j) {
 			blobs[i]->GetData().SetValueAt(j, static_cast<float>(randomInit.Uniform(-1, 1)));
 		}
@@ -181,4 +183,97 @@ TEST(ReferenceDnnTest, FullCopyDnnsThreads)
 	for(int i = 0; i < numOfThreads; ++i) {
 		delete dnns[i];
 	}
+}
+
+TEST(ReferenceDnnTest, ReferenceCounterCheck)
+{
+	const int numOfThreads = 4;
+
+	CObjectArray<CDnnBlob> blobs;
+	CArray<CDnnTestParam> taskParams;
+	CArray<CRandom> randoms;
+	CArray<CDnn*> dnns;
+
+	// 1.Create and learn dnn
+	randoms.Add(CRandom(0));
+	dnns.Add(createDnn(randoms[0]));
+
+	blobs.Add(CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 8, 20, 30, 10 }));
+
+	CRandom randomInit(0);
+	for(int j = 0; j < blobs[0]->GetDataSize(); ++j) {
+		blobs[0]->GetData().SetValueAt(j, static_cast<float>(randomInit.Uniform(-1, 1)));
+	}
+	static_cast<CSourceLayer*>(dnns[0]->GetLayer("in").Ptr())->SetBlob(blobs[0]);
+
+	CPtr<CSourceLayer> labels = Source(*dnns[0], "labels");
+	CPtr<CDnnBlob> labelBlob = CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 1, 1, 1, 10 });
+	for(int j = 0; j < labelBlob->GetDataSize(); ++j) {
+		labelBlob->GetData().SetValueAt(j, static_cast<float>(randomInit.Uniform(19, 20)));
+	}
+	labels->SetBlob(labelBlob);
+
+	CPtr<CL1LossLayer> loss = new CL1LossLayer(MathEngine());
+	loss->SetName("loss");
+	loss->Connect(0, *(dnns[0]->GetLayer("fc3")));
+	loss->Connect(1, *labels);
+	dnns[0]->AddLayer(*loss);
+
+	CPtr<CDnnSimpleGradientSolver> solver = new CDnnSimpleGradientSolver(MathEngine());
+	solver->SetLearningRate(1e-4f);
+	solver->SetMomentDecayRate(0.f);
+	dnns[0]->SetSolver(solver);
+
+	for(int i = 0; i < 10; ++i) {
+		dnns[0]->RunAndLearnOnce();
+	}
+	
+	// 2. Run mulithread inference
+	dnns[0]->DeleteLayer("labels");
+	dnns[0]->DeleteLayer("loss");
+
+
+	taskParams.Add({ dnns[0] });
+	for(int i = 1; i < numOfThreads; ++i) {
+		randoms.Add(CRandom(i));
+		dnns.Add(dnns[0]->CreateReferenceDnn(randoms[i]));
+
+		blobs.Add(CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 8, 20, 30, 10 }));
+		taskParams.Add({ dnns[i] });
+
+		CRandom randomInit(0);
+		for(int j = 0; j < blobs[i]->GetDataSize(); ++j) {
+			blobs[i]->GetData().SetValueAt(j, static_cast<float>(randomInit.Uniform(-1, 1)));
+		}
+
+		static_cast<CSourceLayer*>(dnns[i]->GetLayer("in").Ptr())->SetBlob(blobs[i]);
+	}
+
+	IThreadPool* pool = CreateThreadPool(numOfThreads);
+	for(int i = 0; i < numOfThreads; ++i) {
+		pool->AddTask(i, runDnn, &(taskParams[i]));
+	}
+
+	pool->WaitAllTask();
+
+	// 3. Learn again
+	for(int i = 1; i < numOfThreads; ++i) {
+		delete dnns[i];
+	}
+
+	dnns[0]->AddLayer(*labels);
+	dnns[0]->AddLayer(*loss);
+	
+	CPtr<CDnnSimpleGradientSolver> solver1 = new CDnnSimpleGradientSolver(MathEngine());
+	solver1->SetLearningRate(1e-4f);
+	solver1->SetMomentDecayRate(0.f);
+	dnns[0]->SetSolver(solver1);
+
+	NeoAssert( dnns[0]->IsLearningEnabled() );
+	for(int i = 0; i < 10; ++i) {
+		dnns[0]->RunAndLearnOnce();
+	}
+
+	delete pool;
+	delete dnns[0];
 }
