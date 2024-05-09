@@ -1,4 +1,4 @@
-/* Copyright © 2017-2023 ABBYY
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ limitations under the License.
 #include "Operators/ConvOperator.h"
 #include "Operators/ConvTransposeOperator.h"
 #include "Operators/CumSumOperator.h"
+#include "Operators/DepthToSpaceOperator.h"
 #include "Operators/DropoutOperator.h"
 #include "Operators/EltwiseOperator.h"
 #include "Operators/ExpandOperator.h"
@@ -62,6 +63,8 @@ limitations under the License.
 #include "Operators/TransposeOperator.h"
 #include "Operators/UnsqueezeOperator.h"
 #include "Operators/UpsampleOperator.h"
+
+using namespace NeoML;
 
 namespace NeoOnnx {
 
@@ -128,6 +131,7 @@ REGISTER_OPERATOR( CConvOperator, "Conv" )
 REGISTER_OPERATOR( CConvTransposeOperator, "ConvTranspose" )
 REGISTER_OPERATOR( CCumSumOperator, "CumSum" )
 REGISTER_OPERATOR( CEltwiseOperator<COnnxEltwiseLayer::TOperation::Div>, "Div" )
+REGISTER_OPERATOR( CDepthToSpaceOperator, "DepthToSpace" )
 REGISTER_OPERATOR( CDropoutOperator, "Dropout" )
 REGISTER_OPERATOR( CEluOperator, "Elu" )
 REGISTER_OPERATOR( CEltwiseOperator<COnnxEltwiseLayer::TOperation::Equal>, "Equal" )
