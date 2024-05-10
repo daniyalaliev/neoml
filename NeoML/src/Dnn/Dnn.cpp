@@ -416,8 +416,7 @@ CDnn::CDnn( CRandom& _random, IMathEngine& _mathEngine, const CCompositeLayer* o
 	currentSequencePos( 0 ),
 	isReverseSequense( false ),
 	autoRestartMode( true ),
-	isReuseMemoryMode( false ),
-	refInfo(nullptr)
+	isReuseMemoryMode( false )
 {
 	solver = FINE_DEBUG_NEW CDnnSimpleGradientSolver( mathEngine );
 	initializer = FINE_DEBUG_NEW CDnnXavierInitializer( random );
@@ -429,10 +428,6 @@ CDnn::~CDnn()
 		CPtr<CBaseLayer> layer = layers[i];
 		DeleteLayer( *layer );
 		layer->setDnn( 0 );
-	}
-
-	if(refInfo != nullptr) {
-		refInfo->removeReference(this);
 	}
 }
 
@@ -504,7 +499,7 @@ void CDnn::ForceRebuild()
 
 CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 {
-	for (int i = 0; i < layers.Size(); ++i) {
+	for(int i = 0; i < layers.Size(); ++i) {
 		auto* srcLayer = dynamic_cast<CSourceLayer*>(layers[i].Ptr());
 		if (srcLayer != nullptr) {
 			CheckArchitecture(srcLayer->GetBlob().Ptr() != nullptr, srcLayer->GetName(),
@@ -512,17 +507,12 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		}
 	}
 
-	if(refInfo == nullptr) {
-		refInfo = new CDnnRefManager(this);
-	}
-
-	DisableLearning();
 	reshape();
 
 	CDnn* newDnn = new CDnn(random, mathEngine);
 	newDnn->DisableLearning();
 
-	for (int i = 0; i < layers.Size(); ++i) {
+	for(int i = 0; i < layers.Size(); ++i) {
 		CPtr<CBaseLayer> copyLayer;
 		CMemoryFile file;
 		{
@@ -538,8 +528,10 @@ CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 		layers[i]->transferParamsBlob(*copyLayer);
 		newDnn->AddLayer(*copyLayer);
 	}
-	refInfo->addReference(newDnn);
-	newDnn->refInfo = refInfo;
+
+	newDnn->referenceDnnRegistoror = CDnnReferenceRegistor(this);
+
+	DisableLearning();
 	return newDnn;
 }
 
@@ -585,9 +577,7 @@ void CDnn::DisableLearning()
 
 void CDnn::EnableLearning()
 {
-	if(refInfo != nullptr) {
-		NeoAssert((refInfo->sharedDnns).Size() == 1);
-	}
+	NeoAssert(referenceDnnRegistoror.referenceCounter == 0);
 
 	if( isLearningEnabled ) {
 		return;

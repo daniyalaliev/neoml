@@ -87,7 +87,6 @@ class CDnn;
 class CDnnLayerGraph;
 class CBaseLayer;
 class CCompositeLayer;
-class CDnnRefManager;
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -499,6 +498,25 @@ NEOML_API IMathEngine* GetRecommendedGpuMathEngine( size_t memoryLimit );
 
 //------------------------------------------------------------------------------------------------------------
 
+// Manages reference counts and initial states for CDnn objects, restoring configurations once all references are removed
+class NEOML_API CDnnReferenceRegistor final {
+public:
+	CDnnReferenceRegistor();
+	explicit CDnnReferenceRegistor(CDnn* _originalDnn);
+	CDnnReferenceRegistor& operator=(CDnnReferenceRegistor&& other);
+
+private:
+	~CDnnReferenceRegistor();
+
+	bool learningState = true; // Initial learning state of parent Dnn (before creating references)
+	int referenceCounter = 0; // -1 if reference, else - number of child dnns
+	CDnn* originalDnn = nullptr; // Pointer to the parent dnn ( or to itself if it is parent)
+
+	friend class CDnn;
+};
+
+//------------------------------------------------------------------------------------------------------------
+
 // CDnn class represents a neural network
 class NEOML_API CDnn : public CDnnLayerGraph {
 public:
@@ -566,7 +584,9 @@ public:
 	// Checks if the network is going to be rebuilt before the next run
 	// The method may be useful for controlling the rebuild frequency
 	bool IsRebuildRequested() const { return isRebuildNeeded; }
-	// Make copy of the network with references to parameters (copy uses the origin's dnn parameters)
+	// Make copy of the network with references to parent's parameters (WindowBlob)
+	// May be used in multithread inference not to waste extra memory
+	// When dnn contains child references, both the network and its references are restricted to learn
 	CDnn* CreateReferenceDnn(CRandom& random);
 
 	// Gets a reference to the random numbers generator
@@ -643,7 +663,7 @@ private:
 	bool isReuseMemoryMode;
 	
 	// Reference information 
-	CPtr<CDnnRefManager> refInfo;
+	CDnnReferenceRegistor referenceDnnRegistoror;
 
 	void setProcessingParams(bool isRecurrentMode, int sequenceLength, bool isReverseSequense, bool isBackwardPerformed);
 	void runOnce(int curSequencePos);
@@ -655,44 +675,8 @@ private:
 	friend class CBaseLayer;
 	friend class CCompositeLayer;
 	friend class CRecurrentLayer;
-	friend class CDnnRefManager;
+	friend class CDnnReferenceRegistor;
 };
-
-//------------------------------------------------------------------------------------------------------------
-
-// Manages reference counts and initial states for CDnn objects, restoring configurations once all references are removed
-class NEOML_API CDnnRefManager : public IObject {
-public:
-	CDnnRefManager(CDnn* _originalDnn) :
-		learningState(_originalDnn->IsLearningEnabled())
-	{
-		sharedDnns.Add(_originalDnn);
-	}
-
-private:
-	bool learningState; // initial isLearningEnable state before creating reference copies
-	CHashTable<CDnn*> sharedDnns; // set of dnns with shared weights
-
-	void addReference(CDnn* net) { sharedDnns.Add(net); }
-
-	void removeReference(CDnn* net) {
-		sharedDnns.Delete(net);
-
-		if(sharedDnns.Size() == 1) {
-			auto pos = sharedDnns.GetFirstPosition();
-			CDnn* lastDnn = sharedDnns.GetValue(pos);
-			lastDnn->refInfo.Release();
-
-			if(learningState) {
-				lastDnn->EnableLearning();
-			}
-		}
-	}
-
-	friend class CDnn;
-};
-
-//------------------------------------------------------------------------------------------------------------
 
 inline CArchive& operator<<( CArchive& archive, const CDnn& dnn)
 {

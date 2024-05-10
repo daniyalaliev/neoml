@@ -16,6 +16,7 @@ set(NeoML_SOURCES_COMPACT
     Dnn/Dnn.cpp
     Dnn/DnnBlob.cpp
     Dnn/DnnInitializer.cpp
+    Dnn/DnnReferenceRegistor.cpp
     Dnn/DnnSparseMatrix.cpp
     Dnn/Layers/3dConvLayer.cpp
     Dnn/Layers/ActivationLayers.cpp
