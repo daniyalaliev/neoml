@@ -25,12 +25,18 @@ using namespace NeoMLTest;
 
 TEST( CDnnBlobTest, InitWindowBlob )
 {
-    CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob(MathEngine(), CT_Float, 16, 1, 1);
-    CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob(parent, 16);
+    MathEngine().CleanUp();
+    MathEngine().ResetPeakMemoryUsage();
+    {
+        CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
+        CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob( parent );
 
-    EXPECT_TRUE(window->GetData().IsNull() == false);
-    EXPECT_TRUE(CompareBlobs(*window, *parent));
-    EXPECT_TRUE(window->GetData() == parent->GetData());
+        EXPECT_TRUE( window->GetData().IsNull() == false );
+        EXPECT_TRUE(CompareBlobs(*window, *parent));
+        EXPECT_TRUE(window->GetData() == parent->GetData());
+    }
+    EXPECT_TRUE( MathEngine().GetCurrentMemoryUsage() == 0 );
+    EXPECT_EQ( MathEngine().GetPeakMemoryUsage(), 16 * sizeof( float ) );
 
     CPtr<CDnnBlob> shifted_window = CDnnBlob::CreateWindowBlob(parent, 1);
     for(int i = 0; i < parent->GetDesc().BatchLength(); ++i) {
@@ -65,21 +71,19 @@ TEST( CDnnBlobTest, BufferMemoryThresholdTest )
             MathEngine().SetThreadBufferMemoryThreshold( threshold );
         }
 
-        MathEngine().ResetPeakMemoryUsage();
-        const size_t peakMemory = MathEngine().GetPeakMemoryUsage();
+        const size_t peakMemory = MathEngine().GetCurrentMemoryUsage();
         const size_t reusedMemory = ( init ? 0 : threshold );
         {
             CPtr<CDnnBlob> blob1 = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, int(threshold / sizeof( float )), 1, 1 );
             ASSERT_TRUE( blob1 != nullptr && !blob1->GetData().IsNull() );
             CPtr<CDnnBlob> blob2 = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, int( threshold / sizeof( float ) + 1), 1, 1 );
             ASSERT_TRUE( blob2 != nullptr && !blob2->GetData().IsNull() );
-            EXPECT_EQ( MathEngine().GetPeakMemoryUsage(), peakMemory + threshold - reusedMemory + threshold + sizeof( float ) );
+            EXPECT_EQ( MathEngine().GetCurrentMemoryUsage(), peakMemory + threshold - reusedMemory + threshold + sizeof( float ) );
         }
         const size_t memoryInPools = MathEngine().GetMemoryInPools() - reusedMemory;
         EXPECT_EQ( memoryInPools, threshold - reusedMemory );
 
-        MathEngine().ResetPeakMemoryUsage();
-        EXPECT_EQ( MathEngine().GetPeakMemoryUsage() - memoryInPools, peakMemory );
+        EXPECT_EQ( MathEngine().GetCurrentMemoryUsage() - memoryInPools, peakMemory );
         sumMemoryInPools += memoryInPools;
     };
 
