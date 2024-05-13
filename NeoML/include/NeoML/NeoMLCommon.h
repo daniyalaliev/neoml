@@ -37,6 +37,14 @@ if( !( expr ) ) { \
 } else \
 	( ( void )1 )
 
+#define NeoAssertMsg( expr, text ) \
+if( !( expr ) ) { \
+	FineDebugBreak();	\
+	if( NeoML::ThrowInternalError( IET_Assert, __FUNCTION__, text, __UNICODEFILE__, __LINE__, 0 ) ) \
+		FineBreakPoint(); \
+} else \
+	( ( void )1 )
+
 #define NeoPresume( expr ) \
 if( !( expr ) ) { \
 	FineDebugBreak();	\
@@ -50,6 +58,12 @@ if( !( expr ) ) { \
 #define NeoAssert( expr ) \
 if( !( expr ) ) { \
 	NeoML::ThrowInternalError( IET_Assert, __FUNCTION__, "", __UNICODEFILE__, __LINE__, 0 ); \
+} else \
+	( ( void )1 )
+
+#define NeoAssertMsg( expr, text ) \
+if( !( expr ) ) { \
+	NeoML::ThrowInternalError( IET_Assert, __FUNCTION__, text, __UNICODEFILE__, __LINE__, 0 ); \
 } else \
 	( ( void )1 )
 

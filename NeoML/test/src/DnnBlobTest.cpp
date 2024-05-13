@@ -29,7 +29,7 @@ TEST( CDnnBlobTest, InitWindowBlob )
     MathEngine().ResetPeakMemoryUsage();
     {
         CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
-        CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob( parent );
+        CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob( parent, 16 );
 
         EXPECT_TRUE( window->GetData().IsNull() == false );
         EXPECT_TRUE(CompareBlobs(*window, *parent));
@@ -37,11 +37,14 @@ TEST( CDnnBlobTest, InitWindowBlob )
     }
     EXPECT_TRUE( MathEngine().GetCurrentMemoryUsage() == 0 );
     EXPECT_EQ( MathEngine().GetPeakMemoryUsage(), 16 * sizeof( float ) );
-
-    CPtr<CDnnBlob> shifted_window = CDnnBlob::CreateWindowBlob(parent, 1);
-    for(int i = 0; i < parent->GetDesc().BatchLength(); ++i) {
-        shifted_window->SetParentPos(i);
-        EXPECT_TRUE(shifted_window->GetData() == parent->GetObjectData(i));
+    
+    {
+        CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob(MathEngine(), CT_Float, 16, 1, 1);
+        CPtr<CDnnBlob> shifted_window = CDnnBlob::CreateWindowBlob(parent, 1);
+        for(int i = 0; i < parent->GetDesc().BatchLength(); ++i) {
+            shifted_window->SetParentPos(i);
+            EXPECT_TRUE(shifted_window->GetData() == parent->GetObjectData(i));
+        }
     }
 }
 

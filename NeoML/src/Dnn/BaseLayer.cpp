@@ -306,6 +306,7 @@ void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 	dist.paramBlobs.SetSize(paramBlobs.Size());
 
 	// Create reference copy of dist.paramBlobs with shared buffer
+	// Takes a pointer to parent's blob to access memory
 	for(int j = 0; j < dist.paramBlobs.Size(); ++j) {
 		dist.paramBlobs[j] = CDnnBlob::CreateWindowBlob(paramBlobs[j], paramBlobs[j]->GetDesc().BatchLength());
 	}

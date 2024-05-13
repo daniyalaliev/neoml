@@ -32,19 +32,19 @@ static void runDnn(int, void* params)
 {
 	CReferenceDnnTestParam* taskParams = static_cast<CReferenceDnnTestParam*>(params);
 	taskParams->net->RunOnce();
-};
+}
 
 static CDnn* createDnn(CRandom& random)
 {
 	CDnn* net = new CDnn(random, MathEngine());
 
-	CSourceLayer* dataLayer = Source(*net, "in");
-	CFullyConnectedLayer* fc1 = FullyConnected(50)("fc1", dataLayer);
-	CDropoutLayer* dp1 = Dropout(0.1f)("dp1", fc1);
-	CFullyConnectedLayer* fc2 = FullyConnected(200)("fc2", dp1);
-	CDropoutLayer* dp2 = Dropout(0.1f)("dp2", fc2);
-	CFullyConnectedLayer* fc3 = FullyConnected(10)("fc3", dp2);
-	CSinkLayer* sink = Sink(fc3, "sink");
+	CBaseLayer* layer = Source(*net, "in");
+	layer = FullyConnected(50)("fc1", layer);
+	layer = Dropout(0.1f)("dp1", layer);
+	layer = FullyConnected(200)("fc2", layer);
+	layer = Dropout(0.1f)("dp2", layer);
+	layer = FullyConnected(10)("fc3", layer);
+	layer = Sink(layer, "sink");
 
 	return net;
 }

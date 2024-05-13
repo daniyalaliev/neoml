@@ -499,6 +499,8 @@ void CDnn::ForceRebuild()
 
 CDnn* CDnn::CreateReferenceDnn(CRandom& random)
 {
+	NeoAssertMsg(referenceDnnRegistoror.referenceCounter != -1,
+		"resricted creating reference dnn if dnn is reference itself");
 	for(int i = 0; i < layers.Size(); ++i) {
 		auto* srcLayer = dynamic_cast<CSourceLayer*>(layers[i].Ptr());
 		if (srcLayer != nullptr) {
@@ -577,7 +579,8 @@ void CDnn::DisableLearning()
 
 void CDnn::EnableLearning()
 {
-	NeoAssert(referenceDnnRegistoror.referenceCounter == 0);
+	NeoAssertMsg(referenceDnnRegistoror.referenceCounter == 0,
+		"learning restricted if reference dnn exist");
 
 	if( isLearningEnabled ) {
 		return;
