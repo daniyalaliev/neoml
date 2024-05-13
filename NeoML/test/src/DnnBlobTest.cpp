@@ -25,24 +25,70 @@ using namespace NeoMLTest;
 
 TEST( CDnnBlobTest, InitWindowBlob )
 {
-    CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
-    CPtr<CDnnBlob> blob = CDnnBlob::CreateWindowBlob( parent );
+    MathEngine().CleanUp();
+    MathEngine().ResetPeakMemoryUsage();
+    {
+        CPtr<CDnnBlob> parent = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
+        CPtr<CDnnBlob> window = CDnnBlob::CreateWindowBlob( parent );
 
-    ASSERT_FALSE( blob->GetData().IsNull() );
+        EXPECT_TRUE( window->GetData().IsNull() == false );
+    }
+    EXPECT_TRUE( MathEngine().GetCurrentMemoryUsage() == 0 );
+    EXPECT_EQ( MathEngine().GetPeakMemoryUsage(), 16 * sizeof( float ) );
 }
 
 TEST( CDnnBlobTest, BufferTest )
 {
     CPtr<CDnnBlob> blob = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, 16, 1, 1 );
-    ASSERT_FALSE( blob->GetData().IsNull() );
+    EXPECT_FALSE( blob->GetData().IsNull() );
 
     CDnnBlobBuffer<float> buffer( *blob, TDnnBlobBufferAccess::Write );
-    ASSERT_NE( nullptr, buffer.Ptr() );
+    EXPECT_NE( nullptr, buffer.Ptr() );
     ::memset( buffer, 0, buffer.Size() * sizeof( float ) );
 
     EXPECT_FALSE( buffer.IsClosed() );
     buffer.Close();
     EXPECT_TRUE( buffer.IsClosed() );
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+
+TEST( CDnnBlobTest, BufferMemoryThresholdTest )
+{
+    auto testMethod = []( size_t threshold, bool init, size_t &sumMemoryInPools )
+    {
+        if( init ) {
+            MathEngine().CleanUp();
+            MathEngine().SetReuseMemoryMode( true );
+            MathEngine().SetThreadBufferMemoryThreshold( threshold );
+        }
+
+        const size_t peakMemory = MathEngine().GetCurrentMemoryUsage();
+        const size_t reusedMemory = ( init ? 0 : threshold );
+        {
+            CPtr<CDnnBlob> blob1 = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, int(threshold / sizeof( float )), 1, 1 );
+            ASSERT_TRUE( blob1 != nullptr && !blob1->GetData().IsNull() );
+            CPtr<CDnnBlob> blob2 = CDnnBlob::CreateDataBlob( MathEngine(), CT_Float, int( threshold / sizeof( float ) + 1), 1, 1 );
+            ASSERT_TRUE( blob2 != nullptr && !blob2->GetData().IsNull() );
+            EXPECT_EQ( MathEngine().GetCurrentMemoryUsage(), peakMemory + threshold - reusedMemory + threshold + sizeof( float ) );
+        }
+        const size_t memoryInPools = MathEngine().GetMemoryInPools() - reusedMemory;
+        EXPECT_EQ( memoryInPools, threshold - reusedMemory );
+
+        EXPECT_EQ( MathEngine().GetCurrentMemoryUsage() - memoryInPools, peakMemory );
+        sumMemoryInPools += memoryInPools;
+    };
+
+    size_t sumMemoryInPools = 0;
+    {
+        testMethod( 256, /*init*/true, sumMemoryInPools );
+
+        std::thread thread( testMethod, 512, /*init*/true, std::ref( sumMemoryInPools ) );
+        thread.join();
+
+        testMethod( 256, /*init*/false, sumMemoryInPools );
+    }
+    EXPECT_EQ( sumMemoryInPools, 256 + 512 );
 }
 
 //---------------------------------------------------------------------------------------------------------------------

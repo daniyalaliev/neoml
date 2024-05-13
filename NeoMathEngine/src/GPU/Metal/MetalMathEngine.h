@@ -1,4 +1,4 @@
-/* Copyright © 2017-2023 ABBYY
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,6 +47,9 @@ public:
 	// IMathEngine interface methods
 	TMathEngineType GetType() const override { return MET_Metal; }
 	void SetReuseMemoryMode( bool enable ) override;
+	bool GetReuseMemoryMode() const override;
+	void SetThreadBufferMemoryThreshold( size_t threshold ) override;
+	size_t GetThreadBufferMemoryThreshold() const override;
 	CMemoryHandle HeapAlloc( size_t count ) override;
 	void HeapFree( const CMemoryHandle& handle ) override;
 	void TransferHandleToThisThread( const CMemoryHandle& /*handle*/, size_t /*size*/ ) override { ASSERT_EXPR( false ); }
@@ -55,6 +58,7 @@ public:
 	size_t GetFreeMemorySize() const override;
 	size_t GetPeakMemoryUsage() const override;
 	void ResetPeakMemoryUsage() override;
+	size_t GetCurrentMemoryUsage() const override;
 	size_t GetMemoryInPools() const override;
 	void CleanUp() override;
 	void* GetBuffer( const CMemoryHandle& handle, size_t pos, size_t size, bool exchange ) override;

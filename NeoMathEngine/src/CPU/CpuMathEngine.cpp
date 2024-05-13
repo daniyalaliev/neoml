@@ -1,4 +1,4 @@
-/* Copyright © 2017-2023 ABBYY
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -97,6 +97,28 @@ void CCpuMathEngine::SetReuseMemoryMode( bool enable )
 	memoryPool->SetReuseMemoryMode( enable );
 }
 
+bool CCpuMathEngine::GetReuseMemoryMode() const
+{
+	// Distributed CPU math engine always uses memory pools
+	if( IsDistributed() ) {
+		return true;
+	}
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetReuseMemoryMode();
+}
+
+void CCpuMathEngine::SetThreadBufferMemoryThreshold( size_t threshold )
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	memoryPool->SetThreadBufferMemoryThreshold( threshold );
+}
+
+size_t CCpuMathEngine::GetThreadBufferMemoryThreshold() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetThreadBufferMemoryThreshold();
+}
+
 CMemoryHandle CCpuMathEngine::HeapAlloc( size_t size )
 {
 	std::lock_guard<std::mutex> lock( mutex );
@@ -155,6 +177,12 @@ void CCpuMathEngine::ResetPeakMemoryUsage()
 {
 	std::lock_guard<std::mutex> lock( mutex );
 	memoryPool->ResetPeakMemoryUsage();
+}
+
+size_t CCpuMathEngine::GetCurrentMemoryUsage() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetCurrentMemoryUsage();
 }
 
 size_t CCpuMathEngine::GetMemoryInPools() const

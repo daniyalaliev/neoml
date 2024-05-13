@@ -1,4 +1,4 @@
-/* Copyright © 2017-2020 ABBYY Production LLC
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -97,6 +97,24 @@ void CVulkanMathEngine::SetReuseMemoryMode( bool enable )
 	memoryPool->SetReuseMemoryMode( enable );
 }
 
+bool CVulkanMathEngine::GetReuseMemoryMode() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetReuseMemoryMode();
+}
+
+void CVulkanMathEngine::SetThreadBufferMemoryThreshold( size_t threshold )
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	memoryPool->SetThreadBufferMemoryThreshold( threshold );
+}
+
+size_t CVulkanMathEngine::GetThreadBufferMemoryThreshold() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetThreadBufferMemoryThreshold();
+}
+
 CMemoryHandle CVulkanMathEngine::HeapAlloc( size_t size )
 {
 	std::lock_guard<std::mutex> lock( mutex );
@@ -148,6 +166,12 @@ void CVulkanMathEngine::ResetPeakMemoryUsage()
 {
 	std::lock_guard<std::mutex> lock( mutex );
 	memoryPool->ResetPeakMemoryUsage();
+}
+
+size_t CVulkanMathEngine::GetCurrentMemoryUsage() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetCurrentMemoryUsage();
 }
 
 size_t CVulkanMathEngine::GetMemoryInPools() const

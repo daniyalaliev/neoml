@@ -1,4 +1,4 @@
-/* Copyright © 2017-2023 ABBYY
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -63,6 +63,12 @@ void CCudaMathEngine::ResetPeakMemoryUsage()
 	memoryPool->ResetPeakMemoryUsage();
 }
 
+size_t CCudaMathEngine::GetCurrentMemoryUsage() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetCurrentMemoryUsage();
+}
+
 size_t CCudaMathEngine::GetMemoryInPools() const
 {
 	std::lock_guard<std::mutex> lock( mutex );
@@ -72,6 +78,24 @@ size_t CCudaMathEngine::GetMemoryInPools() const
 void CCudaMathEngine::SetReuseMemoryMode( bool )
 {
 	// Always true, because allocation is sync
+}
+
+bool CCudaMathEngine::GetReuseMemoryMode() const
+{
+	// Always true, because allocation is sync
+	return true;
+}
+
+void CCudaMathEngine::SetThreadBufferMemoryThreshold( size_t threshold )
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	memoryPool->SetThreadBufferMemoryThreshold( threshold );
+}
+
+size_t CCudaMathEngine::GetThreadBufferMemoryThreshold() const
+{
+	std::lock_guard<std::mutex> lock( mutex );
+	return memoryPool->GetThreadBufferMemoryThreshold();
 }
 
 CMemoryHandle CCudaMathEngine::HeapAlloc( size_t size )

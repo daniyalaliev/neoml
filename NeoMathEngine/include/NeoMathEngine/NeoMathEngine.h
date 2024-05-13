@@ -1,4 +1,4 @@
-/* Copyright © 2017-2023 ABBYY
+/* Copyright © 2017-2024 ABBYY
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1160,11 +1160,21 @@ public:
 	virtual void GetMathEngineInfo( CMathEngineInfo& info ) const = 0;
 
 	// Memory management
+
 	// Turns on and off the memory reuse mode
 	// In this mode, the allocated memory blocks will not be deleted on HeapFree() and may be used until CleanUp()
 	virtual void SetReuseMemoryMode( bool enable ) = 0;
+	virtual bool GetReuseMemoryMode() const = 0;
+	// Specialize the size threshold in bytes for the current thread, so
+	// memory blocks of a size <= this threshold would be allocated in buffers if 'reuse' mode enabled
+	// memory blocks of a size >  this threshold would be allocated in raw RAM memory (malloc/free)
+	virtual void SetThreadBufferMemoryThreshold( size_t threshold ) = 0;
+	// Get the memory blocks' sizes threshold for this thread
+	virtual size_t GetThreadBufferMemoryThreshold() const = 0;
+
 	virtual CMemoryHandle HeapAlloc( size_t count ) = 0;
 	virtual void HeapFree( const CMemoryHandle& handle ) = 0;
+
 	// Transfers memory handle from other thread owner to this thread.
 	// Caution! Do not use this method directly, only through the method CDnnBlob::TransferDataToThisThread()
 	virtual void TransferHandleToThisThread( const CMemoryHandle& handle, size_t size ) = 0;
@@ -1187,7 +1197,8 @@ public:
 	virtual size_t GetPeakMemoryUsage() const = 0;
 	// Reset the peak memory counter to the current memory usage value
 	virtual void ResetPeakMemoryUsage() = 0;
-
+	// The current memory usage size
+	virtual size_t GetCurrentMemoryUsage() const = 0;
 	// The current size of memory in the pools
 	virtual size_t GetMemoryInPools() const = 0;
 
@@ -1220,7 +1231,7 @@ public:
 	virtual void AllReduce( const CFloatHandle& handle, int size ) = 0;
 	virtual void Broadcast( const CFloatHandle& handle, int size, int root ) = 0;
 	virtual void AbortDistributed() {};
-	virtual bool IsDistributed() { return false; }
+	virtual bool IsDistributed() const { return false; }
 };
 
 //------------------------------------------------------------------------------------------------------------
