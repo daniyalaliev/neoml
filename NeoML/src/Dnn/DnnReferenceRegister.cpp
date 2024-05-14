@@ -22,10 +22,11 @@ namespace NeoML {
 
 CDnnReferenceRegister::CDnnReferenceRegister() = default;
 
-CDnnReferenceRegister::CDnnReferenceRegister(CDnn* _originalDnn) :
+CDnnReferenceRegister::CDnnReferenceRegister(CDnn* _originalDnn, CRandom* _originalRandom) :
 	learningState(false),
 	referenceCounter(-1),
-	originalDnn(_originalDnn)
+	originalDnn(_originalDnn),
+	originalRandom(_originalRandom)
 {
 	NeoAssert(_originalDnn != nullptr);
 	if(originalDnn->referenceDnnRegister.referenceCounter++ == 0) {
@@ -45,6 +46,10 @@ CDnnReferenceRegister::~CDnnReferenceRegister()
 	{
 		originalDnn->EnableLearning();
 	}
+
+	if(originalRandom != nullptr) {
+		delete originalRandom;
+	}
 }
 
 CDnnReferenceRegister& CDnnReferenceRegister::operator=(CDnnReferenceRegister&& other) {
@@ -52,10 +57,12 @@ CDnnReferenceRegister& CDnnReferenceRegister::operator=(CDnnReferenceRegister&& 
 		learningState = other.learningState;
 		referenceCounter = other.referenceCounter;
 		originalDnn = other.originalDnn;
+		originalRandom = other.originalRandom;
 
 		other.originalDnn = nullptr;
 		other.referenceCounter = 0;
 		other.learningState = false;
+		other.originalRandom = nullptr;
 	}
 	return *this;
 }

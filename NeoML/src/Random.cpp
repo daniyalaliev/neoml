@@ -33,20 +33,6 @@ CRandom::CRandom( unsigned int seed ) :
 	Reset( seed );
 }
 
-CRandom& CRandom::operator=(const CRandom& random)
-{
-	if (this == &random) {
-		return *this;
-	}
-
-	for (int i = 0; i < random.lagSize; ++i) {
-		lag[i] = random.lag[i];
-	}
-	carry = random.carry;
-	lagPosition = random.lagPosition;
-	return *this;
-}
-
 void CRandom::Reset( unsigned int seed )
 {
 	carry = initialCarry;

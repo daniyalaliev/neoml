@@ -312,7 +312,7 @@ void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 	}
 
 	CCompositeLayer* compositeTo = dynamic_cast<CCompositeLayer*>(&dist);
-	if (compositeTo != nullptr) {
+	if(compositeTo != nullptr) {
 		const CCompositeLayer* compositeFrom = CheckCast<const CCompositeLayer>(this);
 
 		CArray<const char*> fromLayers;
@@ -323,7 +323,6 @@ void CBaseLayer::transferParamsBlob(CBaseLayer& dist) const
 		}
 	}
 }
-
 
 void CBaseLayer::switchBlobsToSequentialMode(CObjectArray<CDnnBlob>& blobs, TBlobCacheType cacheType, bool storeParent)
 {

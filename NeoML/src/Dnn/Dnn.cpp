@@ -502,17 +502,13 @@ CDnn* CDnn::CreateReferenceDnn(CRandom* random)
 	CDnn* originalDnn = ( referenceDnnRegister.referenceCounter == -1 ) ? referenceDnnRegister.originalDnn : this;
 	originalDnn->reshape();
 	
-	CDnnReferenceRegister referenceRegister(originalDnn);
-	if(random == nullptr) {
-		referenceRegister.originRandom = originalDnn->random;
-	}
-
-	CRandom& newRandom = (random == nullptr) ? referenceRegister.originRandom : *random;
-	CDnn* newDnn = new CDnn(newRandom, mathEngine);
+	CDnnReferenceRegister referenceRegister(originalDnn, random == nullptr ? new CRandom(originalDnn->random) : nullptr);
+	CDnn* newDnn = new CDnn(*(random == nullptr ? referenceRegister.originalRandom : random), mathEngine);
 	newDnn->referenceDnnRegister = std::move(referenceRegister);
 	
-	for (int i = 0; i < originalDnn->layers.Size(); ++i) {
-		CMemoryFile file;
+	CMemoryFile file;
+	for(int i = 0; i < originalDnn->layers.Size(); ++i) {
+		file.SeekToBegin();
 		{
 			CArchive archive(&file, CArchive::store);
 			SerializeLayer(archive, originalDnn->layers[i]->MathEngine(), originalDnn->layers[i]);
