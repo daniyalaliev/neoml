@@ -20,29 +20,34 @@ limitations under the License.
 
 namespace NeoML {
 
-CDnnReferenceRegistor::CDnnReferenceRegistor() = default;
+CDnnReferenceRegister::CDnnReferenceRegister() = default;
 
-CDnnReferenceRegistor::CDnnReferenceRegistor(CDnn* _originalDnn) :
+CDnnReferenceRegister::CDnnReferenceRegister(CDnn* _originalDnn) :
 	learningState(false),
 	referenceCounter(-1),
 	originalDnn(_originalDnn)
 {
 	NeoAssert(_originalDnn != nullptr);
-	if(originalDnn->referenceDnnRegistoror.referenceCounter++ == 0) {
-		originalDnn->referenceDnnRegistoror.learningState = originalDnn->IsLearningEnabled();
+	if(originalDnn->referenceDnnRegister.referenceCounter++ == 0) {
+		originalDnn->referenceDnnRegister.learningState = originalDnn->IsLearningEnabled();
 	}
 }
 
-CDnnReferenceRegistor::~CDnnReferenceRegistor()
+CDnnReferenceRegister::~CDnnReferenceRegister()
 {
-	if(referenceCounter == -1 && --(originalDnn->referenceDnnRegistoror.referenceCounter) == 0
-		&& originalDnn->referenceDnnRegistoror.learningState)
+	if(originalDnn == nullptr) {
+		NeoAssertMsg(referenceCounter == 0,
+			"delete reference dnns before original dnn");
+	}
+
+	if(referenceCounter == -1 && --(originalDnn->referenceDnnRegister.referenceCounter) == 0
+		&& originalDnn->referenceDnnRegister.learningState)
 	{
 		originalDnn->EnableLearning();
 	}
 }
 
-CDnnReferenceRegistor& CDnnReferenceRegistor::operator=(CDnnReferenceRegistor&& other) {
+CDnnReferenceRegister& CDnnReferenceRegister::operator=(CDnnReferenceRegister&& other) {
 	if(this != &other) {
 		learningState = other.learningState;
 		referenceCounter = other.referenceCounter;

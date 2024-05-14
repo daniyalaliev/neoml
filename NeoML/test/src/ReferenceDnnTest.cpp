@@ -65,7 +65,7 @@ static void getTestDnns(CArray<CDnn*>& dnns, CArray<CRandom>& randoms,
 		if(ifCreateNewDnn) {
 			dnns.Add(createDnn(randoms[i]));
 		} else {
-			dnns.Add(dnns[0]->CreateReferenceDnn(randoms[i]));
+			dnns.Add(dnns[i-1]->CreateReferenceDnn());
 		}
 
 		CRandom randomInit(0);
@@ -73,6 +73,22 @@ static void getTestDnns(CArray<CDnn*>& dnns, CArray<CRandom>& randoms,
 		initializeBlob(srcBlob.Ptr(), randomInit, 0, 1);
 		static_cast<CSourceLayer*>(dnns[i]->GetLayer("in").Ptr())->SetBlob(srcBlob);
 	}
+}
+
+static void runMultithreadInference(CArray<CDnn*>& dnns, const int numOfThreads)
+{
+	CArray<CReferenceDnnTestParam> taskParams;
+	for (int i = 0; i < numOfThreads; ++i) {
+		taskParams.Add({ dnns[i] });
+	}
+
+	IThreadPool* pool = CreateThreadPool(numOfThreads);
+	for (int i = 0; i < numOfThreads; ++i) {
+		pool->AddTask(i, runDnn, &(taskParams[i]));
+	}
+
+	pool->WaitAllTask();
+	delete pool;
 }
 
 static void perfomanceTest(bool useReference, const int numOfThreads=4)
@@ -88,18 +104,8 @@ static void perfomanceTest(bool useReference, const int numOfThreads=4)
 	counters->Synchronise();
 
 	getTestDnns(dnns, randoms, useReference, numOfThreads);
+	runMultithreadInference(dnns, numOfThreads);
 
-	CArray<CReferenceDnnTestParam> taskParams;
-	for(int i = 0; i < numOfThreads; ++i) {
-		taskParams.Add({ dnns[i] });
-	}
-
-	IThreadPool* pool = CreateThreadPool(numOfThreads);
-	for(int i = 0; i < numOfThreads; ++i) {
-		pool->AddTask(i, runDnn, &(taskParams[i]));
-	}
-
-	pool->WaitAllTask();
 	counters->Synchronise();
 	std::cerr
 		<< '\n' << "Time: " << (double((*counters)[0].Value) / 1000000) << " ms."
@@ -107,8 +113,7 @@ static void perfomanceTest(bool useReference, const int numOfThreads=4)
 
 
 	delete counters;
-	delete pool;
-	// delete children first
+	// delete references first
 	for(int i = 1; i < numOfThreads; ++i) {
 		delete dnns[i];
 	}
@@ -130,17 +135,7 @@ TEST(ReferenceDnnTest, ReferenceDnnInferenceTest)
 	}
 
 	getTestDnns(dnns, randoms, true, numOfThreads);
-
-	CArray<CReferenceDnnTestParam> taskParams;
-	for(int i = 0; i < numOfThreads; ++i) {
-		taskParams.Add({ dnns[i] });
-	}
-
-	IThreadPool* pool = CreateThreadPool(numOfThreads);
-	for(int i = 0; i < numOfThreads; ++i) {
-		pool->AddTask(i, runDnn, &(taskParams[i]));
-	}
-	pool->WaitAllTask();
+	runMultithreadInference(dnns, numOfThreads);
 
 	for(int i = 0; i < numOfThreads - 1; ++i) {
 		EXPECT_TRUE(CompareBlobs(
@@ -154,15 +149,14 @@ TEST(ReferenceDnnTest, ReferenceDnnInferenceTest)
 		);
 	}
 
-	delete pool;
-	// delete children first
+	// delete references first
 	for(int i = 1; i < numOfThreads; ++i) {
 		delete dnns[i];
 	}
 	delete dnns[0];
 }
 
-TEST(ReferenceDnnTest, CDnnReferenceRegistorTest)
+TEST(ReferenceDnnTest, CDnnReferenceRegisterTest)
 {
 	// Implement scenario - learn dnn, use multihtread inference, learn again
 	const int numOfThreads = 4;
@@ -200,11 +194,9 @@ TEST(ReferenceDnnTest, CDnnReferenceRegistorTest)
 	dnns[0]->DeleteLayer("labels");
 	dnns[0]->DeleteLayer("loss");
 
-	taskParams.Add({ dnns[0] });
 	for(int i = 1; i < numOfThreads; ++i) {
 		randoms.Add(CRandom(i));
-		dnns.Add(dnns[0]->CreateReferenceDnn(randoms[i]));
-		taskParams.Add({ dnns[i] });
+		dnns.Add(dnns[0]->CreateReferenceDnn());
 
 		CPtr<CDnnBlob> srcBlob = CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 8, 20, 30, 10 });
 		initializeBlob(srcBlob.Ptr(), randomInit, 0, 1);
@@ -212,12 +204,7 @@ TEST(ReferenceDnnTest, CDnnReferenceRegistorTest)
 	}
 
 	EXPECT_TRUE(!dnns[0]->IsLearningEnabled());
-
-	IThreadPool* pool = CreateThreadPool(numOfThreads);
-	for(int i = 0; i < numOfThreads; ++i) {
-		pool->AddTask(i, runDnn, &(taskParams[i]));
-	}
-	pool->WaitAllTask();
+	runMultithreadInference(dnns, numOfThreads);
 
 	// 3. Learn again
 	for(int i = 1; i < numOfThreads; ++i) {
@@ -231,10 +218,9 @@ TEST(ReferenceDnnTest, CDnnReferenceRegistorTest)
 	for(int i = 0; i < 10; ++i) {
 		dnns[0]->RunAndLearnOnce();
 	}
-
-	delete pool;
 	delete dnns[0];
 }
+
 TEST(ReferenceDnnTest, DISABLED_PerfomanceReferenceDnnsThreads)
 {
 	perfomanceTest(true);

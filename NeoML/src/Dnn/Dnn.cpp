@@ -497,43 +497,38 @@ void CDnn::ForceRebuild()
 	sourceLayers.SetSize( 0 );
 }
 
-CDnn* CDnn::CreateReferenceDnn(CRandom& random)
+CDnn* CDnn::CreateReferenceDnn(CRandom* random)
 {
-	NeoAssertMsg(referenceDnnRegistoror.referenceCounter != -1,
-		"resricted creating reference dnn if dnn is reference itself");
-	for(int i = 0; i < layers.Size(); ++i) {
-		auto* srcLayer = dynamic_cast<CSourceLayer*>(layers[i].Ptr());
-		if (srcLayer != nullptr) {
-			CheckArchitecture(srcLayer->GetBlob().Ptr() != nullptr, srcLayer->GetName(),
-				"initialize source blobs before creating reference dnns");
-		}
+	CDnn* originalDnn = ( referenceDnnRegister.referenceCounter == -1 ) ? referenceDnnRegister.originalDnn : this;
+	originalDnn->reshape();
+	
+	CDnnReferenceRegister referenceRegister(originalDnn);
+	if(random == nullptr) {
+		referenceRegister.originRandom = originalDnn->random;
 	}
 
-	reshape();
-
-	CDnn* newDnn = new CDnn(random, mathEngine);
-	newDnn->DisableLearning();
-
-	for(int i = 0; i < layers.Size(); ++i) {
-		CPtr<CBaseLayer> copyLayer;
+	CRandom& newRandom = (random == nullptr) ? referenceRegister.originRandom : *random;
+	CDnn* newDnn = new CDnn(newRandom, mathEngine);
+	newDnn->referenceDnnRegister = std::move(referenceRegister);
+	
+	for (int i = 0; i < originalDnn->layers.Size(); ++i) {
 		CMemoryFile file;
 		{
-			CArchive archive(&file, CArchive::SD_Storing);
-			CPtr<CBaseLayer> originalPtr(layers[i]);
-			SerializeLayer(archive, layers[i]->MathEngine(), originalPtr);
+			CArchive archive(&file, CArchive::store);
+			SerializeLayer(archive, originalDnn->layers[i]->MathEngine(), originalDnn->layers[i]);
 		}
 		file.SeekToBegin();
-		CPtr<CBaseLayer> result;
-		CArchive archive(&file, CArchive::SD_Loading);
-		SerializeLayer(archive, layers[i]->MathEngine(), copyLayer);
-
-		layers[i]->transferParamsBlob(*copyLayer);
+		CPtr<CBaseLayer> copyLayer;
+		{
+			CArchive archive(&file, CArchive::load);
+			SerializeLayer(archive, originalDnn->layers[i]->MathEngine(), copyLayer);
+			originalDnn->layers[i]->transferParamsBlob(*copyLayer);
+		}
 		newDnn->AddLayer(*copyLayer);
 	}
-
-	newDnn->referenceDnnRegistoror = CDnnReferenceRegistor(this);
-
-	DisableLearning();
+	
+	newDnn->DisableLearning();
+	originalDnn->DisableLearning();
 	return newDnn;
 }
 
@@ -579,7 +574,7 @@ void CDnn::DisableLearning()
 
 void CDnn::EnableLearning()
 {
-	NeoAssertMsg(referenceDnnRegistoror.referenceCounter == 0,
+	NeoAssertMsg(referenceDnnRegister.referenceCounter == 0,
 		"learning restricted if reference dnn exist");
 
 	if( isLearningEnabled ) {

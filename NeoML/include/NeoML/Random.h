@@ -25,6 +25,7 @@ namespace NeoML {
 class NEOML_API CRandom {
 public:
 	explicit CRandom( unsigned int seed = 0xBADF00D );
+	CRandom& operator=(const CRandom&);
 
 	// Resets to the starting state
 	void Reset( unsigned int seed );
