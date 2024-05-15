@@ -55,16 +55,14 @@ static void initializeBlob(CDnnBlob* blob, CRandom& random, int min, int max) {
 	}
 }
 
-static void getTestDnns(CArray<CDnn*>& dnns, CArray<CRandom>& randoms,
-	bool useReference, bool useOriginalDnnRandom, const int& numOfThreads)
+static void getTestDnns(CArray<CDnn*>& dnns, CArray<CRandom>& randoms, bool useReference, const int& numOfThreads)
 {
 	for(int i = 0; i < numOfThreads; ++i) {
 		bool ifCreateNewDnn = (i == 0 || !useReference);
 		if(ifCreateNewDnn) {
 			dnns.Add(createDnn(randoms[i]));
 		} else {
-			CRandom* referenceRandom = useOriginalDnnRandom ? nullptr : &randoms[i];
-			dnns.Add( dnns[i-1]->CreateReferenceDnn(referenceRandom));
+			dnns.Add( dnns[i-1]->CreateReferenceDnn());
 		}
 
 		CPtr<CDnnBlob> srcBlob = CDnnBlob::CreateTensor(MathEngine(), CT_Float, { 1, 1, 1, 8, 20, 30, 10 });
@@ -106,7 +104,7 @@ static void perfomanceTest(bool useReference, const int numOfThreads=4)
 	IPerformanceCounters* counters(MathEngine().CreatePerformanceCounters());
 	counters->Synchronise();
 
-	getTestDnns(dnns, randoms, useReference, true, numOfThreads);
+	getTestDnns(dnns, randoms, useReference, numOfThreads);
 	runMultithreadInference(dnns, numOfThreads);
 
 	counters->Synchronise();
@@ -133,7 +131,7 @@ TEST(ReferenceDnnTest, ReferenceDnnInferenceTest)
 	CArray<CDnn*> dnns;
 	CArray<CRandom> randoms = { CRandom(0x123) };
 
-	getTestDnns(dnns, randoms, true, true, numOfThreads);
+	getTestDnns(dnns, randoms, true, numOfThreads);
 	runMultithreadInference(dnns, numOfThreads);
 
 	for(int i = 0; i < numOfThreads - 1; ++i) {
@@ -211,28 +209,6 @@ TEST(ReferenceDnnTest, CDnnReferenceRegisterTest)
 	for(int i = 0; i < 10; ++i) {
 		dnns[0]->RunAndLearnOnce();
 	}
-	delete dnns[0];
-}
-
-
-TEST(ReferenceDnnTest, ReferenceDnnRandomGenerator)
-{
-	CArray<CRandom> randoms = { CRandom(0x123) };
-	CArray<CDnn*> dnns;
-	getTestDnns(dnns, randoms, true, true, 2); // Reference uses origin's random
-	EXPECT_TRUE(CompareBlobs(*static_cast<CSourceLayer*>(dnns[0]->GetLayer("in").Ptr())->GetBlob(), 
-		*static_cast<CSourceLayer*>(dnns[1]->GetLayer("in").Ptr())->GetBlob()));
-
-	delete dnns[1];
-	delete dnns[0];
-	dnns.DeleteAll();
-
-	randoms = { CRandom(0), CRandom(1) };
-	getTestDnns(dnns, randoms, true, false, 2); // Reference uses own random
-	EXPECT_TRUE(!CompareBlobs(*static_cast<CSourceLayer*>(dnns[0]->GetLayer("in").Ptr())->GetBlob(),
-		*static_cast<CSourceLayer*>(dnns[1]->GetLayer("in").Ptr())->GetBlob()));
-	
-	delete dnns[1];
 	delete dnns[0];
 }
 

@@ -503,7 +503,7 @@ NEOML_API IMathEngine* GetRecommendedGpuMathEngine( size_t memoryLimit );
 class NEOML_API CDnnReferenceRegister final {
 public:
 	CDnnReferenceRegister();
-	explicit CDnnReferenceRegister(CDnn* _originalDnn, CRandom* _originalRandom = nullptr);
+	explicit CDnnReferenceRegister(CDnn* _originalDnn, CRandom* _originalRandom);
 	CDnnReferenceRegister& operator=(CDnnReferenceRegister&& other);
 
 private:
@@ -513,8 +513,7 @@ private:
 	// For reference dnn counter = -1, else for original dnn it stores number of created reference dnns
 	int referenceCounter = 0;
 	CDnn* originalDnn = nullptr; // Pointer to the original dnn if it's reference dnn ( nullptr otherwise )
-	// Holds a copy of the original network's random number generator if no custom generator is provided
-	// This random generator is used by CDnn's CRandom& reference
+	// Holds a copy of the original network's random number generator, used by CDnn's CRandom& reference
 	CRandom* originalRandom = nullptr;
 
 	friend class CDnn;
@@ -592,9 +591,9 @@ public:
 	// This function initializes a new DNN with the same configuration as the original but uses shared parameter blobs to save memory
 	// Useful for multithreaded inference where each thread can operate independently without duplicating memory for network parameters
 	// Learning is disabled in both the original and the reference DNN
-	// Uses the same random generator as the original dnn by default; provide your own random generator if necessary
+	// Uses the same random generator as the original dnn
 	// Pointer allocates memory using the new operator => the memory must be manually deallocated.
-	CDnn* CreateReferenceDnn(CRandom* random = nullptr);
+	CDnn* CreateReferenceDnn();
 
 	// Gets a reference to the random numbers generator
 	CRandom& Random() { return random; }

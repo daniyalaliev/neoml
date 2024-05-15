@@ -497,13 +497,13 @@ void CDnn::ForceRebuild()
 	sourceLayers.SetSize( 0 );
 }
 
-CDnn* CDnn::CreateReferenceDnn(CRandom* random)
+CDnn* CDnn::CreateReferenceDnn()
 {
 	CDnn* originalDnn = ( referenceDnnRegister.referenceCounter == -1 ) ? referenceDnnRegister.originalDnn : this;
 	originalDnn->reshape();
 	
-	CDnnReferenceRegister referenceRegister(originalDnn, random == nullptr ? new CRandom(originalDnn->random) : nullptr);
-	CDnn* newDnn = new CDnn(*(random == nullptr ? referenceRegister.originalRandom : random), mathEngine);
+	CDnnReferenceRegister referenceRegister(originalDnn, new CRandom(originalDnn->random));
+	CDnn* newDnn = new CDnn(*referenceRegister.originalRandom, mathEngine);
 	newDnn->referenceDnnRegister = std::move(referenceRegister);
 	
 	CMemoryFile file;
