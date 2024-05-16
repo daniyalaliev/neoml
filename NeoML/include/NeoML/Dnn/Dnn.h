@@ -503,7 +503,7 @@ NEOML_API IMathEngine* GetRecommendedGpuMathEngine( size_t memoryLimit );
 class NEOML_API CDnnReferenceRegister final {
 public:
 	CDnnReferenceRegister();
-	explicit CDnnReferenceRegister(CDnn* _originalDnn, CRandom* _originalRandom);
+	explicit CDnnReferenceRegister(CDnn* _originalDnn);
 	CDnnReferenceRegister& operator=(CDnnReferenceRegister&& other);
 
 private:

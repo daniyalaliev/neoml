@@ -22,11 +22,11 @@ namespace NeoML {
 
 CDnnReferenceRegister::CDnnReferenceRegister() = default;
 
-CDnnReferenceRegister::CDnnReferenceRegister(CDnn* _originalDnn, CRandom* _originalRandom) :
+CDnnReferenceRegister::CDnnReferenceRegister(CDnn* _originalDnn) :
 	learningState(false),
 	referenceCounter(-1),
 	originalDnn(_originalDnn),
-	originalRandom(_originalRandom)
+	originalRandom(new CRandom(_originalDnn->Random()))
 {
 	NeoAssert(_originalDnn != nullptr);
 	if(originalDnn->referenceDnnRegister.referenceCounter++ == 0) {
