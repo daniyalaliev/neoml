@@ -5,6 +5,7 @@ add_library(${PROJECT_NAME} INTERFACE)
 target_sources(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/AutoDiffTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/BatchNormFusionTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/BertThreadTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/BpeTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ChannelwiseWith1x1BlockTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ClassificationAndRegressionTest.cpp

@@ -109,6 +109,7 @@ set(NeoML_SOURCES
     Dnn/Layers/ArgmaxLayer.cpp
     Dnn/Layers/AttentionLayer.cpp
     Dnn/Layers/BertConvLayer.cpp
+    Dnn/Layers/BertLayer.cpp
     Dnn/Layers/BinaryFocalLossLayer.cpp
     Dnn/Layers/CenterLossLayer.cpp
     Dnn/Layers/ChannelwiseWith1x1Layer.cpp
@@ -370,6 +371,7 @@ set(NeoML_HEADERS
     ../include/NeoML/Dnn/Layers/ArgmaxLayer.h
     ../include/NeoML/Dnn/Layers/AttentionLayer.h
     ../include/NeoML/Dnn/Layers/BertConvLayer.h
+    ../include/NeoML/Dnn/Layers/BertLayer.h
     ../include/NeoML/Dnn/Layers/BinaryFocalLossLayer.h
     ../include/NeoML/Dnn/Layers/CenterLossLayer.h
     ../include/NeoML/Dnn/Layers/ChannelwiseWith1x1Layer.h
