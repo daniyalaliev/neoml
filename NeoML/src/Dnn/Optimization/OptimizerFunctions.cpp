@@ -158,8 +158,8 @@ int OptimizeDnnHeadAdapters( CGraph& graph )
 
 	int result = 0;
 	for( CBaseLayer* layer : layers ) {
-		CDnnHeadAdapterLayer* head = dynamic_cast<CDnnHeadAdapterLayer*>( layer );
-		if( head != nullptr && OptimizeDnn( *( head->GetDnnHead()->dnn ) ).IsOptimized() ) {
+		CDnnHeadAdapterLayer* adapter = dynamic_cast<CDnnHeadAdapterLayer*>( layer );
+		if( adapter != nullptr && OptimizeDnn( adapter->GetDnnHead()->GetDnn() ).IsOptimized() ) {
 			++result;
 		}
 	}
