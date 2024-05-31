@@ -76,17 +76,17 @@ static void createDnn( CDnn& dnn, bool isNaive, int complexity = 1000, float dro
         CPtr<CGELULayer> gelu1 = Gelu()( "gelu1", CDnnLayerLink{ fc1, 0 } );
         CPtr<CGELULayer> gelu2 = Gelu()( "gelu2", CDnnLayerLink{ fc1, 1 } );
         CPtr<CGELULayer> gelu3 = Gelu()( "gelu3", CDnnLayerLink{ fc1, 2 } );
-    
+
         CPtr<CFullyConnectedLayer> fc2 = FullyConnected( complexity, freeTerm )( "fc2", gelu1.Ptr(), gelu2.Ptr(), gelu3.Ptr() );
         CPtr<CReLULayer> relu1 = Relu()( "relu1", CDnnLayerLink{ fc2, 0 } );
         CPtr<CReLULayer> relu2 = Relu()( "relu2", CDnnLayerLink{ fc2, 1 } );
         CPtr<CReLULayer> relu3 = Relu()( "relu3", CDnnLayerLink{ fc2, 2 } );
-    
+
         CPtr<CDropoutLayer> dropout1 = Dropout( dropoutRate )( "dp1", relu1.Ptr() );
         CPtr<CDropoutLayer> dropout2 = Dropout( dropoutRate )( "dp2", relu2.Ptr() );
         CPtr<CDropoutLayer> dropout3 = Dropout( dropoutRate )( "dp3", relu3.Ptr() );
         CPtr<CFullyConnectedLayer> fc3 = FullyConnected( 1 )( "fc3", dropout1.Ptr(), dropout2.Ptr(), dropout3.Ptr() );
-    
+
         concat = ConcatChannels()( "concat",
             CDnnLayerLink{ fc3, 0 }, CDnnLayerLink{ fc3, 1 }, CDnnLayerLink{ fc3, 2 } );
 
@@ -105,7 +105,7 @@ static void createDnn( CDnn& dnn, bool isNaive, int complexity = 1000, float dro
             dnn.Random(), dnn.GetMathEngine(),
             FullyConnected( 3 * complexity, freeTerm ), // "fc1"
             Gelu(),
-            FullyConnected( 1 * complexity, freeTerm ), // "fc2"
+            FullyConnected( complexity, freeTerm ), // "fc2"
             Relu(),
             Dropout( dropoutRate ),
             FullyConnected( 1 ) // "fc3",
@@ -128,71 +128,77 @@ static void createDnn( CDnn& dnn, bool isNaive, int complexity = 1000, float dro
     initializeDnnBlobs( dnn );
 }
 
-static void testDnnAdapterPerformace( bool isNaive, int complexity = 1000, int interations = 1000, bool train = true )
+static void testDnnAdapterPerformace( bool isNaive, int interations = 1000, bool train = true )
 {
     IPerformanceCounters* counters = MathEngine().CreatePerformanceCounters();
     const char* fileName = "DnnAdapter.cnnarch";
-    {
-        CRandom random( 0 );
-        CDnn dnn( random, MathEngine() );
 
-        createDnn( dnn, isNaive, complexity );
-        OptimizeDnn( dnn );
+    GTEST_LOG_( INFO ) << "\n interations = " << interations << "   is_naive = " << isNaive << "\n"
+        << "|" << std::setw( 10 ) << "size "
+        << "|" << std::setw( 21 ) << "Train " << "|" << std::setw( 21 ) << "Inference " << "|\n"
+        << "|" << std::setw( 10 ) << ""
+        << "|" << std::setw( 10 ) << "time (ms) " << "|" << std::setw( 10 ) << "mem (MB) "
+        << "|" << std::setw( 10 ) << "time (ms) " << "|" << std::setw( 10 ) << "mem (MB) " << "|\n";
 
-        dnn.CleanUp( /*force*/true );
-        initializeDnnBlobs( dnn );
+    const int complexity = 1000;
+    for( int size = 1 * complexity; size <= 4 * complexity; size += complexity ) {
+        {
+            CRandom random( 0 );
+            CDnn dnn( random, MathEngine() );
 
-        MathEngine().CleanUp();
-        MathEngine().ResetPeakMemoryUsage();
+            createDnn( dnn, isNaive, size );
+            OptimizeDnn( dnn );
 
-        if( train ) {
-            dnn.RunAndLearnOnce();
+            dnn.CleanUp( /*force*/true );
+            initializeDnnBlobs( dnn );
+
+            MathEngine().CleanUp();
+            MathEngine().ResetPeakMemoryUsage();
+
+            if( train ) {
+                dnn.RunAndLearnOnce();
+                counters->Synchronise();
+                for( int i = 0; i < interations; ++i ) {
+                    dnn.RunAndLearnOnce();
+                }
+                counters->Synchronise();
+            }
+            CArchiveFile file( fileName, CArchive::store, GetPlatformEnv() );
+            CArchive archive( &file, CArchive::store );
+            archive << dnn;
+        }
+        double train_time = train ? ( double( ( *counters )[0].Value ) / 1000000 ) : 0.;
+        double train_mem = train ? ( double( MathEngine().GetPeakMemoryUsage() ) / 1024 / 1024 ) : 0.;
+
+        {
+            CRandom random( 0 );
+            CDnn dnn( random, MathEngine() );
+
+            CArchiveFile file( fileName, CArchive::load, GetPlatformEnv() );
+            CArchive archive( &file, CArchive::load );
+            archive >> dnn;
+
+            dnn.CleanUp( /*force*/true );
+            initializeDnnBlobs( dnn );
+
+            MathEngine().CleanUp();
+            MathEngine().ResetPeakMemoryUsage();
+
+            dnn.RunOnce();
             counters->Synchronise();
             for( int i = 0; i < interations; ++i ) {
-                dnn.RunAndLearnOnce();
+                dnn.RunOnce();
             }
             counters->Synchronise();
         }
-        CArchiveFile file( fileName, CArchive::store, GetPlatformEnv() );
-        CArchive archive( &file, CArchive::store );
-        archive << dnn;
+        double inference_time = double( ( *counters )[0].Value ) / 1000000;
+        double inference_mem = double( MathEngine().GetPeakMemoryUsage() ) / 1024 / 1024;
+
+        std::cout
+            << "|" << std::setw( 10 ) << size
+            << "|" << std::setw( 10 ) << train_time << "|" << std::setw( 10 ) << train_mem
+            << "|" << std::setw( 10 ) << inference_time << "|" << std::setw( 10 ) << inference_mem << "|\n";
     }
-    double train_time = train ? ( double( ( *counters )[0].Value ) / 1000000 ) : 0.;
-    double train_mem = train ? ( double( MathEngine().GetPeakMemoryUsage() ) / 1024 / 1024 ) : 0.;
-
-    {
-        CRandom random( 0 );
-        CDnn dnn( random, MathEngine() );
-
-        CArchiveFile file( fileName, CArchive::load, GetPlatformEnv() );
-        CArchive archive( &file, CArchive::load );
-        archive >> dnn;
-
-        dnn.CleanUp( /*force*/true );
-        initializeDnnBlobs( dnn );
-
-        MathEngine().CleanUp();
-        MathEngine().ResetPeakMemoryUsage();
-
-        dnn.RunOnce();
-        counters->Synchronise();
-        for( int i = 0; i < interations; ++i ) {
-            dnn.RunOnce();
-        }
-        counters->Synchronise();
-    }
-    double inference_time = double( ( *counters )[0].Value ) / 1000000;
-    double inference_mem = double( MathEngine().GetPeakMemoryUsage() ) / 1024 / 1024;
-
-    GTEST_LOG_( INFO ) << "\n complexity = " << complexity
-        << "\n interations = " << interations
-        << "\n is_naive = " << isNaive
-        << "\n|" << std::setw(21) << "Train " << "|" << std::setw(21) << "Inference " << "|\n"
-        << "|" << std::setw( 10 ) << "time (ms) " << "|" << std::setw( 10 ) << "mem (MB) "
-        << "|" << std::setw( 10 ) << "time (ms) " << "|" << std::setw( 10 ) << "mem (MB) " << "|\n"
-        << "|" << std::setw( 10 ) << train_time << "|" << std::setw( 10 ) << train_mem
-        << "|" << std::setw( 10 ) << inference_time << "|" << std::setw( 10 ) << inference_mem << "|\n"
-        ;
     delete counters;
 }
 
@@ -200,21 +206,19 @@ static void testDnnAdapterPerformace( bool isNaive, int complexity = 1000, int i
 
 //----------------------------------------------------------------------------------------------------------------------
 
-TEST( CDnnHeadTest, DISABLED_DnnHeadAdapterLearnTest )
+TEST( CDnnHeadTest, DnnHeadAdapterLearnTest )
 {
-    CRandom random( 0 );
+    CRandom random( 0x17 );
     CDnn dnn( random, MathEngine() );
+    createDnn( dnn, /*isNaive*/false, /*complexity*/1000, /*dropout*/0.f );
 
-    createDnn( dnn, /*isNaive*/false);
-
-    for( int i = 0; i < 100; ++i ) {
+    for( int i = 0; i < 200; ++i ) {
         dnn.RunAndLearnOnce();
     }
-
-    EXPECT_NEAR( CheckCast<CLossLayer>( dnn.GetLayer( "loss" ).Ptr() )->GetLastLoss(), 0, 1e-2f );
+    EXPECT_NEAR( CheckCast<CLossLayer>( dnn.GetLayer( "loss" ).Ptr() )->GetLastLoss(), 0, 1e-3f );
 }
 
-TEST( CDnnHeadTest, CheckDnnHeadAdapterInferenceMatch )
+TEST( CDnnHeadTest, DnnHeadAdapterInferenceMatch )
 {
     auto runOnce = []( bool isNaive )
     {
@@ -235,26 +239,27 @@ TEST( CDnnHeadTest, CheckDnnHeadAdapterInferenceMatch )
     EXPECT_TRUE( CompareBlobs( *expected, *output ) );
 }
 
-TEST( CDnnHeadTest, CheckDnnHeadAdapterLearningMatch )
+TEST( CDnnHeadTest, DnnHeadAdapterLearningMatch )
 {
-    CRandom random( 0x11 );
+    CRandom random( 0x01 );
     CPtr<CDnnUniformInitializer> init = new CDnnUniformInitializer( random, 0.05f, 0.05f );
 
     CDnn dnnNoAdapters( random, MathEngine() );
     dnnNoAdapters.SetInitializer( init.Ptr() );
-    createDnn( dnnNoAdapters, /*isNaive*/false, /*complexity*/100, /*dropout*/0.f, /*freeTerm*/false );
+    createDnn( dnnNoAdapters, /*isNaive*/true, /*complexity*/1000, /*dropout*/0.f, /*freeTerm*/false );
 
-    CDnn dnnWithAdapters( random, MathEngine() );
+    CRandom randomWithAdapters( 0x01 );
+    CDnn dnnWithAdapters( randomWithAdapters, MathEngine() );
     dnnWithAdapters.SetInitializer( init.Ptr() );
-    createDnn( dnnNoAdapters, /*isNaive*/true, /*complexity*/100, /*dropout*/0.f, /*freeTerm*/false );
+    createDnn( dnnWithAdapters, /*isNaive*/false, /*complexity*/1000, /*dropout*/0.f, /*freeTerm*/false );
+
+    CPtr<CLossLayer> expectedLoss = CheckCast<CLossLayer>( dnnNoAdapters.GetLayer( "loss" ).Ptr() );
+    CPtr<CLossLayer> outputLoss = CheckCast<CLossLayer>( dnnWithAdapters.GetLayer( "loss" ).Ptr() );
 
     for( int i = 0; i < 100; ++i ) {
         dnnNoAdapters.RunAndLearnOnce();
         dnnWithAdapters.RunAndLearnOnce();
-        EXPECT_EQ(
-            CheckCast<CLossLayer>( dnnNoAdapters.GetLayer( "loss" ).Ptr() )->GetLastLoss(),
-            CheckCast<CLossLayer>( dnnWithAdapters.GetLayer( "loss" ).Ptr() )->GetLastLoss()
-        );
+        EXPECT_NEAR( expectedLoss->GetLastLoss(), outputLoss->GetLastLoss(), 1e-3f );
     }
 }
 
@@ -288,15 +293,11 @@ TEST( CDnnHeadTest, DnnHeadAdapterSerializationTest )
 TEST( CDnnHeadTest, DISABLED_DnnHeadAdapterInferencePerfomance )
 {
     DeleteMathEngine();
-    for( int complexity = 1; complexity < 40; complexity += 10 ) {
-        testDnnAdapterPerformace( /*isNaive*/false, complexity * 1000, /*interations*/100 );
-    }
+    testDnnAdapterPerformace( /*isNaive*/false, /*interations*/100 );
 }
 
 TEST( CDnnHeadTest, DISABLED_DnnHeadNaiveInferencePerfomance )
 {
     DeleteMathEngine();
-    for( int complexity = 1; complexity < 40; complexity += 10 ) {
-        testDnnAdapterPerformace( /*isNaive*/true, complexity * 1000, /*interations*/100 );
-    }
+    testDnnAdapterPerformace( /*isNaive*/true, /*interations*/100 );
 }

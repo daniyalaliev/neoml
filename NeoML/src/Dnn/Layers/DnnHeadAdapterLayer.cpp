@@ -133,6 +133,8 @@ void CDnnHeadAdapterLayer::processBackwardOrLearn()
 	loadBlobs();
 
 	head->dnn->backwardRunAndLearnOnce(GetDnn()->GetCurrentSequencePos());
+	innerInputBlobs.DeleteAll();
+	innerInputBlobs.DeleteAll();
 
 	if(head->headCounter == head->connections.Size() - 1) {
 		for(int i = 0; i < head->dnn->layers.Size(); ++i) {
@@ -142,10 +144,7 @@ void CDnnHeadAdapterLayer::processBackwardOrLearn()
 			}
 		}
 	}
-
 	head->increment();
-	innerInputBlobs.DeleteAll();
-	innerInputBlobs.DeleteAll();
 }
 
 void CDnnHeadAdapterLayer::BackwardOnce()
