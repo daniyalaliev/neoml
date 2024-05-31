@@ -197,12 +197,12 @@ void CDnnHeadAdapterLayer::configureAdapter()
 
 void CDnnHeadAdapterLayer::configureFromHead()
 {
-	if(head->connections[head->firstAdapterNum]->IsLearningEnabled()) {
-		EnableLearning();
-	}
-	else {
-		DisableLearning();
-	}
+	//if(head->connections[head->firstAdapterNum]->IsLearningEnabled()) {
+	//	EnableLearning();
+	//}
+	//else {
+	//	DisableLearning();
+	//}
 
 	outputDescs[0] = head->sinkLayer->inputDescs[0];
 	head->increment();
@@ -235,28 +235,28 @@ void CDnnHeadAdapterLayer::configureForBackwardAndLearn()
 	head->blobsForBackward = 0;
 	head->blobsForLearn = 0;
 	const bool hasBackward = IsBackwardPerformed();
-	const bool hasLearn = IsLearningPerformed();
+	bool hasLearn = IsLearningPerformed();
 
-	bool needLearn = false;
+	//bool needLearn = false;
 	for(int i = 0; i < head->dnn->layers.Size(); ++i) {
-		needLearn |= head->dnn->layers[i]->IsLearningPerformed();
+		hasLearn |= head->dnn->layers[i]->IsLearningPerformed();
 		auto layer = dynamic_cast<CDropoutLayer*>(head->dnn->layers[i].Ptr());
 		if(layer != nullptr) {
 			layer->SetHeadCounter(head->connections.Size());
 		}
 	}
 
-	if(needLearn) {
-		EnableLearning();
-	} else {
-		DisableLearning();
-	}
-
-	if(IsLearningEnabled()) {
-		head->dnn->EnableLearning();
-	} else {
-		head->dnn->DisableLearning();
-	}
+	//if(needLearn) {
+	//	EnableLearning();
+	//} else {
+	//	DisableLearning();
+	//}
+	//
+	//if(IsLearningEnabled()) {
+	//	head->dnn->EnableLearning();
+	//} else {
+	//	head->dnn->DisableLearning();
+	//}
 
 	if(!hasBackward && !hasLearn) {
 		return;
